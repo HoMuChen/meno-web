@@ -34,10 +34,14 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
+  // Get auth token from localStorage
+  const token = localStorage.getItem('auth_token')
+
   const config: RequestInit = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   }
