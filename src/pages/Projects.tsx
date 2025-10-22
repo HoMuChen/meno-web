@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -30,6 +31,7 @@ import api, { ApiException } from '@/lib/api'
 import type { Project, ProjectsResponse, CreateProjectRequest } from '@/types/project'
 
 export function ProjectsPage() {
+  const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -342,7 +344,13 @@ export function ProjectsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem className="cursor-pointer">
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/projects/${project._id}`)
+                        }}
+                      >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width="16"
@@ -468,7 +476,7 @@ export function ProjectsPage() {
                   className="w-full min-h-[44px] transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
                   onClick={(e) => {
                     e.preventDefault()
-                    // Handle view action
+                    navigate(`/projects/${project._id}`)
                   }}
                 >
                   View Project

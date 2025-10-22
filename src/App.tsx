@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { LoginPage } from '@/pages/Login'
 import { HomePage } from '@/pages/Home'
 import { ProjectsPage } from '@/pages/Projects'
+import { ProjectDetailPage } from '@/pages/ProjectDetail'
 import { MeetingDetailsPage } from '@/pages/MeetingDetails'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -26,6 +27,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
             <Route path="/projects/:projectId/meetings/:meetingId" element={<MeetingDetailsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

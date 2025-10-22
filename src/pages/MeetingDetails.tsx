@@ -8,30 +8,50 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import api, { ApiException } from '@/lib/api'
 import type { MeetingResponse } from '@/types/meeting'
+import type { Project } from '@/types/project'
 
 export function MeetingDetailsPage() {
   const { projectId, meetingId } = useParams<{ projectId: string; meetingId: string }>()
   const navigate = useNavigate()
   const [meeting, setMeeting] = useState<any>(null)
+  const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchMeeting = async () => {
+    const fetchData = async () => {
       if (!projectId || !meetingId) return
 
       try {
         setIsLoading(true)
         setError(null)
 
-        const response = await api.get<MeetingResponse>(
+        // Fetch project details
+        const projectResponse = await api.get<{ success: boolean; data: Project }>(
+          `/api/projects/${projectId}`
+        )
+
+        if (projectResponse.success && projectResponse.data) {
+          setProject(projectResponse.data)
+        }
+
+        // Fetch meeting details
+        const meetingResponse = await api.get<MeetingResponse>(
           `/api/projects/${projectId}/meetings/${meetingId}`
         )
 
-        if (response.success && response.data) {
-          setMeeting(response.data)
+        if (meetingResponse.success && meetingResponse.data) {
+          setMeeting(meetingResponse.data)
         }
       } catch (err) {
         if (err instanceof ApiException) {
@@ -48,7 +68,7 @@ export function MeetingDetailsPage() {
       }
     }
 
-    fetchMeeting()
+    fetchData()
   }, [projectId, meetingId])
 
   if (isLoading) {
@@ -95,26 +115,42 @@ export function MeetingDetailsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2"
-            aria-hidden="true"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back to Home
-        </Button>
+      {/* Breadcrumbs */}
+      <div className="mb-6">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                onClick={() => navigate('/')}
+                className="cursor-pointer"
+              >
+                Home
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                onClick={() => navigate('/projects')}
+                className="cursor-pointer"
+              >
+                Projects
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                onClick={() => navigate(`/projects/${projectId}`)}
+                className="cursor-pointer"
+              >
+                {project?.name || 'Project'}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{meeting?.title || 'Meeting'}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* Meeting Info */}
