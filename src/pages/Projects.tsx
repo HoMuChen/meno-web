@@ -103,7 +103,7 @@ export function ProjectsPage() {
       {/* Header - Mobile-first responsive */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Projects</h1>
+          <h1 className="text-xl font-bold tracking-tight text-primary sm:text-2xl">Projects</h1>
           <p className="text-sm text-muted-foreground">
             Manage your projects and their configurations
           </p>
@@ -300,7 +300,7 @@ export function ProjectsPage() {
               onClick={() => navigate(`/projects/${project._id}`)}
             >
               <CardHeader className="pb-3">
-                <CardTitle className="line-clamp-1 text-base sm:text-lg">
+                <CardTitle className="line-clamp-1 text-base text-primary sm:text-lg">
                   {project.name}
                 </CardTitle>
                 {project.description && (

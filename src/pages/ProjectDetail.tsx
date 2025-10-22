@@ -284,7 +284,7 @@ export function ProjectDetailPage() {
       {/* Project Info */}
       <div className="mb-6">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-primary">{project.name}</h1>
           {project.description && (
             <p className="text-sm text-muted-foreground">{project.description}</p>
           )}
@@ -298,7 +298,7 @@ export function ProjectDetailPage() {
       <div>
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-bold tracking-tight">Meetings</h2>
+          <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
           <Button className="w-full sm:w-auto">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -379,7 +379,7 @@ export function ProjectDetailPage() {
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-2 text-sm">
+                    <CardTitle className="line-clamp-2 text-sm text-primary">
                       {meeting.title}
                     </CardTitle>
                     <div className="flex items-center gap-1.5">
@@ -504,7 +504,7 @@ export function ProjectDetailPage() {
                           navigate(`/projects/${projectId}/meetings/${meeting._id}`)
                         }
                       >
-                        <TableCell className="font-medium">{meeting.title}</TableCell>
+                        <TableCell className="font-medium text-primary">{meeting.title}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span

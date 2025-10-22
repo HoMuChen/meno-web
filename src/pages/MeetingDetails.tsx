@@ -203,7 +203,7 @@ export function MeetingDetailsPage() {
       {/* Meeting Info */}
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{meeting?.title || 'Untitled Meeting'}</CardTitle>
+          <CardTitle className="text-lg text-primary">{meeting?.title || 'Untitled Meeting'}</CardTitle>
           <CardDescription className="text-xs">
             Created on {meeting?.createdAt ? new Date(meeting.createdAt).toLocaleString() : 'Unknown date'}
           </CardDescription>
@@ -272,7 +272,7 @@ export function MeetingDetailsPage() {
       {transcriptions && transcriptions.length > 0 ? (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Transcription</CardTitle>
+            <CardTitle className="text-lg text-primary">Transcription</CardTitle>
             <CardDescription className="text-xs">
               {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''}
             </CardDescription>
