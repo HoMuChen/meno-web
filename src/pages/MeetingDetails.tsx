@@ -264,6 +264,34 @@ export function MeetingDetailsPage() {
                 </span>
               </div>
             )}
+
+            {/* Content Types */}
+            <div className="flex items-start gap-2">
+              <span className="text-sm font-medium pt-1">Content:</span>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-primary text-primary-foreground cursor-pointer">
+                  Transcription
+                </span>
+                <span className="group relative inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors">
+                  Summary
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border">
+                    Coming Soon
+                  </span>
+                </span>
+                <span className="group relative inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors">
+                  People
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border">
+                    Coming Soon
+                  </span>
+                </span>
+                <span className="group relative inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors">
+                  Events
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border">
+                    Coming Soon
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
