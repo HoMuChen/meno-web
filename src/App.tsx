@@ -14,11 +14,11 @@ function App() {
   // Main app content when authenticated
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
+      {/* Sidebar - Desktop only, Mobile bottom nav included in Sidebar component */}
       <Sidebar user={user} onLogout={logout} />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      {/* Main Content - Adjusted for mobile bottom navigation */}
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         <ProjectsPage />
       </main>
     </div>
