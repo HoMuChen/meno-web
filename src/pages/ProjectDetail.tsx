@@ -152,11 +152,12 @@ export function ProjectDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div className="container mx-auto px-4 py-4 sm:px-4 lg:px-6">
       {/* Header with back button */}
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-4 flex items-center gap-3">
         <Button
           variant="ghost"
+          size="sm"
           onClick={() => navigate('/projects')}
           className="shrink-0"
         >
@@ -179,12 +180,12 @@ export function ProjectDetailPage() {
       </div>
 
       {/* Project Info */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
         {project.description && (
-          <p className="mt-2 text-muted-foreground">{project.description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
         )}
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           Created {formatDate(project.createdAt)}
         </p>
       </div>
@@ -192,10 +193,10 @@ export function ProjectDetailPage() {
       {/* Meetings Section */}
       <div>
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Meetings</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-lg font-bold tracking-tight">Meetings</h2>
+            <p className="text-xs text-muted-foreground">
               {meetings.length} {meetings.length === 1 ? 'meeting' : 'meetings'} in this
               project
             </p>
@@ -223,7 +224,7 @@ export function ProjectDetailPage() {
         {/* Empty State */}
         {meetings.length === 0 && (
           <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+            <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10">
               <div className="mb-4 rounded-full bg-primary/10 p-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -271,16 +272,16 @@ export function ProjectDetailPage() {
 
         {/* Mobile: Card List View */}
         {meetings.length > 0 && (
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-2 md:hidden">
             {meetings.map((meeting) => (
               <Card
                 key={meeting._id}
-                className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+                className="cursor-pointer transition-all hover:border-primary/50"
                 onClick={() => navigate(`/projects/${projectId}/meetings/${meeting._id}`)}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <CardTitle className="line-clamp-2 text-base">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="line-clamp-2 text-sm">
                       {meeting.title}
                     </CardTitle>
                     <span
@@ -290,8 +291,8 @@ export function ProjectDetailPage() {
                     </span>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -349,7 +350,8 @@ export function ProjectDetailPage() {
                   </div>
                   <Button
                     variant="outline"
-                    className="w-full min-h-[44px]"
+                    size="sm"
+                    className="w-full"
                     onClick={(e) => {
                       e.stopPropagation()
                       navigate(`/projects/${projectId}/meetings/${meeting._id}`)

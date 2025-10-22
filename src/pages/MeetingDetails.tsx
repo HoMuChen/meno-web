@@ -114,9 +114,9 @@ export function MeetingDetailsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div className="container mx-auto px-4 py-4 sm:px-4 lg:px-6">
       {/* Breadcrumbs */}
-      <div className="mb-6">
+      <div className="mb-4">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -154,15 +154,15 @@ export function MeetingDetailsPage() {
       </div>
 
       {/* Meeting Info */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-2xl">{meeting?.title || 'Untitled Meeting'}</CardTitle>
-          <CardDescription>
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">{meeting?.title || 'Untitled Meeting'}</CardTitle>
+          <CardDescription className="text-xs">
             Created on {meeting?.createdAt ? new Date(meeting.createdAt).toLocaleString() : 'Unknown date'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Transcription Status */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Transcription Status:</span>
@@ -204,7 +204,7 @@ export function MeetingDetailsPage() {
 
       {/* Placeholder Content */}
       <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-16">
+        <CardContent className="flex flex-col items-center justify-center py-10">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="64"

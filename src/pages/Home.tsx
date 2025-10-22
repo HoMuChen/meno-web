@@ -147,29 +147,29 @@ export function HomePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:py-12 md:py-16 lg:py-20">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
         {/* Hero Section */}
-        <div className="mb-12 max-w-3xl space-y-4">
-          <p className="text-base text-muted-foreground sm:text-lg md:text-xl">
+        <div className="mb-6 max-w-3xl space-y-3">
+          <p className="text-sm text-muted-foreground sm:text-base">
             Upload audio or record directly to get instant transcriptions
           </p>
         </div>
 
         {/* CTA Buttons */}
         {!isUploading && (
-          <div className="flex w-full max-w-md flex-col gap-4 sm:flex-row">
+          <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  size="lg"
-                  className="min-h-[56px] flex-1 text-base font-semibold"
+                  size="default"
+                  className="h-10 flex-1 text-sm font-semibold"
                   disabled={isLoadingProjects || projects.length === 0}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -201,16 +201,16 @@ export function HomePage() {
             </DropdownMenu>
 
             <Button
-              size="lg"
+              size="default"
               variant="secondary"
-              className="min-h-[56px] flex-1 text-base font-semibold"
+              className="h-10 flex-1 text-sm font-semibold"
               onClick={handleRecordClick}
               disabled
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -235,7 +235,7 @@ export function HomePage() {
         {/* Upload Progress */}
         {isUploading && (
           <Card className="w-full max-w-md">
-            <CardContent className="flex flex-col items-center justify-center py-12">
+            <CardContent className="flex flex-col items-center justify-center py-8">
               <div className="mb-4 h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               <p className="mb-2 text-lg font-semibold">Uploading Meeting...</p>
               <div className="w-full max-w-xs">
@@ -255,12 +255,12 @@ export function HomePage() {
 
         {/* Error Message */}
         {error && !isUploading && (
-          <div className="mt-6 w-full max-w-md rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            <div className="flex items-start gap-3">
+          <div className="mt-4 w-full max-w-md rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="flex items-start gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

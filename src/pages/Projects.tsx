@@ -106,12 +106,12 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div className="container mx-auto px-4 py-4 sm:px-4 lg:px-6">
       {/* Header - Mobile-first responsive */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Projects</h1>
-          <p className="text-sm text-muted-foreground sm:text-base">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Projects</h1>
+          <p className="text-sm text-muted-foreground">
             Manage your projects and their configurations
           </p>
         </div>
@@ -200,10 +200,10 @@ export function ProjectsPage() {
 
       {/* Skeleton Loading state - Mobile-first grid */}
       {isLoading && (
-        <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="overflow-hidden">
-              <CardHeader className="space-y-3 pb-4">
+              <CardHeader className="space-y-2 pb-3">
                 <div className="h-6 w-3/4 animate-pulse rounded-md bg-muted" />
                 <div className="h-4 w-full animate-pulse rounded-md bg-muted" />
               </CardHeader>
@@ -251,7 +251,7 @@ export function ProjectsPage() {
       {/* Enhanced Empty state - Mobile-first */}
       {!isLoading && !error && projects.length === 0 && (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+          <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10">
             <div className="mb-4 rounded-full bg-primary/10 p-4">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -299,19 +299,16 @@ export function ProjectsPage() {
 
       {/* Modern Projects Grid - Mobile-first responsive */}
       {!isLoading && !error && projects.length > 0 && (
-        <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {projects.map((project) => (
             <Card
               key={project._id}
-              className="group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-primary/50"
+              className="group relative overflow-hidden transition-all duration-200 hover:border-primary/50"
             >
-              {/* Gradient accent on hover */}
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 to-primary opacity-0 transition-opacity group-hover:opacity-100" />
-
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="line-clamp-1 text-lg sm:text-xl">
+                    <CardTitle className="line-clamp-1 text-base sm:text-lg">
                       {project.name}
                     </CardTitle>
                   </div>
@@ -473,7 +470,8 @@ export function ProjectsPage() {
                 {/* Primary Action Button */}
                 <Button
                   variant="outline"
-                  className="w-full min-h-[44px] transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
+                  size="sm"
+                  className="w-full transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary"
                   onClick={(e) => {
                     e.preventDefault()
                     navigate(`/projects/${project._id}`)
