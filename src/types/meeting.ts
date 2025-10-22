@@ -7,6 +7,7 @@ export interface Meeting {
   recordingType: 'upload' | 'direct'
   transcriptionStatus: 'pending' | 'processing' | 'completed' | 'failed'
   transcriptionProgress?: number
+  description?: string
   metadata?: {
     fileSize?: number
     mimeType?: string
