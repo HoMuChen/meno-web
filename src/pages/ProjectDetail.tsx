@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import api, { ApiException } from '@/lib/api'
 import type { Project } from '@/types/project'
-import type { Meeting, MeetingsResponse } from '@/types/meeting'
+import type { Meeting, MeetingResponse, MeetingsResponse } from '@/types/meeting'
 
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -106,7 +105,7 @@ export function ProjectDetailPage() {
       // Update meetings state with new data
       setMeetings((prevMeetings) => {
         const updatedMeetings = [...prevMeetings]
-        responses.forEach((response) => {
+        responses.forEach((response: MeetingResponse) => {
           if (response.success && response.data) {
             const index = updatedMeetings.findIndex(
               (m) => m._id === response.data._id

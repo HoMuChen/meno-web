@@ -9,8 +9,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog'
 import { useProjects } from '@/hooks/useProjects'
 import api, { ApiException } from '@/lib/api'
