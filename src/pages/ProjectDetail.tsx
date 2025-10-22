@@ -394,6 +394,13 @@ export function ProjectDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {/* Description */}
+                  {meeting.description && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {meeting.description}
+                    </p>
+                  )}
+
                   {/* Progress Bar for Processing */}
                   {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && meeting.transcriptionProgress !== undefined && (
                     <div className="space-y-1">
@@ -488,6 +495,7 @@ export function ProjectDetailPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Title</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Duration</TableHead>
                       <TableHead>Created</TableHead>
@@ -504,6 +512,11 @@ export function ProjectDetailPage() {
                         }
                       >
                         <TableCell className="font-medium text-primary">{meeting.title}</TableCell>
+                        <TableCell>
+                          <span className="line-clamp-2 text-sm text-muted-foreground">
+                            {meeting.description || '-'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span

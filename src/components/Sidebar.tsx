@@ -149,11 +149,11 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 p-3">
+      <nav className="flex-1 space-y-1 p-3">
         <Link
           to="/"
           className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
             location.pathname === '/'
               ? "bg-accent text-accent-foreground"
               : "hover:bg-accent/50"
@@ -161,8 +161,8 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -180,7 +180,7 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
         <Link
           to="/projects"
           className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
             location.pathname === '/projects'
               ? "bg-accent text-accent-foreground"
               : "hover:bg-accent/50"
@@ -188,8 +188,8 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
