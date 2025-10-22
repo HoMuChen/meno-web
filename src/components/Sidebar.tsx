@@ -154,7 +154,7 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
 
       {/* Mobile Bottom Navigation - Visible only on mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-card">
-        <div className="flex items-center justify-around px-2 py-2">
+        <div className="relative flex items-center justify-around px-2 py-2">
           {/* Home */}
           <Link
             to="/"
@@ -208,6 +208,31 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
             </svg>
             <span>Projects</span>
           </Link>
+
+          {/* Floating Add Meeting Button - Center */}
+          <div className="flex-1 flex justify-center">
+            <Link
+              to="/"
+              className="absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95"
+              aria-label="Add Meeting"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </Link>
+          </div>
 
           {/* Settings */}
           <button
