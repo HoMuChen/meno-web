@@ -1,3 +1,4 @@
+import { Sidebar } from '@/components/Sidebar'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -14,46 +15,58 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Hello World</CardTitle>
-          <CardDescription>
-            Welcome to Meno Web - React + Vite + TypeScript + Tailwind + shadcn/ui
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This is a minimal frontend setup ready for development. The project includes:
-          </p>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li className="flex items-center gap-2">
-              <span className="text-primary">✓</span>
-              <span>React 18 with TypeScript</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-primary">✓</span>
-              <span>Vite for fast development</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-primary">✓</span>
-              <span>Tailwind CSS with slate theme</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-primary">✓</span>
-              <span>shadcn/ui components</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-primary">✓</span>
-              <span>API client with environment config</span>
-            </li>
-          </ul>
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button onClick={handleClick}>Click Me</Button>
-          <Button variant="outline">Secondary Action</Button>
-        </CardFooter>
-      </Card>
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="container mx-auto p-6">
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <CardTitle>Hello World</CardTitle>
+              <CardDescription>
+                Welcome to Meno Web - React + Vite + TypeScript + Tailwind + shadcn/ui
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                This is a minimal frontend setup ready for development. The project includes:
+              </p>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>React 18 with TypeScript</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Vite for fast development</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Tailwind CSS with slate theme</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>shadcn/ui components</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>API client with environment config</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Sidebar navigation</span>
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter className="flex gap-2">
+              <Button onClick={handleClick}>Click Me</Button>
+              <Button variant="outline">Secondary Action</Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </main>
     </div>
   )
 }
