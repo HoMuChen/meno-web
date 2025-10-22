@@ -7,13 +7,11 @@ import {
   CardContent,
 } from '@/components/ui/card'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useProjects } from '@/hooks/useProjects'
 import api, { ApiException } from '@/lib/api'
 import type { CreateMeetingResponse } from '@/types/meeting'
@@ -26,6 +24,7 @@ export function HomePage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
 
   const ALLOWED_AUDIO_TYPES = [
     'audio/mpeg', // MP3
@@ -63,8 +62,13 @@ export function HomePage() {
     return null
   }
 
+  const handleUploadClick = () => {
+    setIsProjectModalOpen(true)
+  }
+
   const handleProjectSelect = (projectId: string) => {
     setError(null)
+    setIsProjectModalOpen(false)
     fileInputRef.current?.setAttribute('data-project-id', projectId)
     fileInputRef.current?.click()
   }
@@ -159,46 +163,31 @@ export function HomePage() {
         {/* CTA Buttons */}
         {!isUploading && (
           <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="default"
-                  className="h-10 flex-1 text-sm font-semibold"
-                  disabled={isLoadingProjects || projects.length === 0}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" x2="12" y1="3" y2="15" />
-                  </svg>
-                  Upload Audio
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-56">
-                <DropdownMenuLabel>Select Project</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {projects.map((project) => (
-                  <DropdownMenuItem
-                    key={project._id}
-                    onClick={() => handleProjectSelect(project._id)}
-                  >
-                    {project.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              size="default"
+              className="h-10 flex-1 text-sm font-semibold"
+              disabled={isLoadingProjects || projects.length === 0}
+              onClick={handleUploadClick}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" x2="12" y1="3" y2="15" />
+              </svg>
+              Upload Audio
+            </Button>
 
             <Button
               size="default"
@@ -231,6 +220,54 @@ export function HomePage() {
             </Button>
           </div>
         )}
+
+        {/* Project Selection Modal */}
+        <Dialog open={isProjectModalOpen} onOpenChange={setIsProjectModalOpen}>
+          <DialogContent className="sm:max-w-md border-0 bg-transparent shadow-none p-0">
+            <div className="flex flex-col items-center gap-3 py-6">
+              <h2 className="text-lg font-semibold text-white mb-1">
+                Select Project
+              </h2>
+              <div className="flex flex-col gap-2.5 w-full max-w-xs">
+                {projects.map((project) => (
+                  <Button
+                    key={project._id}
+                    variant="outline"
+                    size="default"
+                    className="justify-center py-3.5 px-6 text-center bg-white text-foreground shadow-lg hover:shadow-xl hover:bg-white transition-all duration-150 border-0 rounded-xl font-semibold text-sm"
+                    onClick={() => handleProjectSelect(project._id)}
+                  >
+                    {project.name}
+                  </Button>
+                ))}
+
+                {/* Create New Project Button */}
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="justify-center items-center gap-1.5 py-3.5 px-6 text-center bg-white/10 text-white border border-white/20 shadow-lg hover:shadow-xl hover:bg-white/15 transition-all duration-150 rounded-xl font-medium text-sm"
+                  onClick={() => navigate('/projects')}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  <span>Create New Project</span>
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Upload Progress */}
         {isUploading && (
