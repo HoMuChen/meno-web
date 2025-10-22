@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import api, { ApiException } from '@/lib/api'
 
 interface LoginPageProps {
-  onLoginSuccess: (token: string, user: any) => void
+  onLoginSuccess: (token: string, user: any) => Promise<void>
 }
 
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
@@ -40,12 +40,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       })
 
       if (response.success && response.data) {
-        // Store token in localStorage
-        localStorage.setItem('auth_token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-
-        // Call success callback
-        onLoginSuccess(response.data.token, response.data.user)
+        // Call async success callback (will handle default project creation)
+        await onLoginSuccess(response.data.token, response.data.user)
       }
     } catch (err) {
       if (err instanceof ApiException) {

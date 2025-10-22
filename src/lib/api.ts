@@ -107,6 +107,57 @@ export const api = {
 
   delete: <T>(endpoint: string, options?: RequestInit) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+
+  /**
+   * POST request with FormData (for file uploads)
+   */
+  postFormData: async <T>(
+    endpoint: string,
+    formData: FormData,
+    options?: RequestInit
+  ): Promise<T> => {
+    const url = `${API_BASE_URL}${endpoint}`
+    const token = localStorage.getItem('auth_token')
+
+    const config: RequestInit = {
+      ...options,
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+        // Don't set Content-Type for FormData - browser will set it with boundary
+      },
+      body: formData,
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new ApiException(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+          response.status,
+          errorData
+        )
+      }
+
+      if (response.status === 204) {
+        return {} as T
+      }
+
+      return await response.json()
+    } catch (error) {
+      if (error instanceof ApiException) {
+        throw error
+      }
+
+      throw new ApiException(
+        error instanceof Error ? error.message : 'An unknown error occurred',
+        0
+      )
+    }
+  },
 }
 
 export default api

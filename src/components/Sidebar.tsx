@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -22,6 +23,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, user, onLogout }: SidebarProps) {
+  const location = useLocation()
+
   return (
     <>
       {/* Desktop Sidebar - Hidden on mobile */}
@@ -38,9 +41,14 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-4">
-        <a
-          href="#"
-          className="flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/80"
+        <Link
+          to="/"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            location.pathname === '/'
+              ? "bg-accent text-accent-foreground"
+              : "hover:bg-accent/50"
+          )}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -52,12 +60,40 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
           Home
-        </a>
+        </Link>
+
+        <Link
+          to="/projects"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            location.pathname === '/projects'
+              ? "bg-accent text-accent-foreground"
+              : "hover:bg-accent/50"
+          )}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+          </svg>
+          Projects
+        </Link>
       </nav>
 
       {/* User Section */}
@@ -120,8 +156,12 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-card">
         <div className="flex items-center justify-around px-2 py-2">
           {/* Home */}
-          <button
-            className="flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium transition-colors hover:bg-accent min-h-[56px] flex-1"
+          <Link
+            to="/"
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium transition-colors hover:bg-accent min-h-[56px] flex-1",
+              location.pathname === '/' ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
             aria-label="Home"
           >
             <svg
@@ -134,18 +174,21 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-primary"
               aria-hidden="true"
             >
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
-            <span className="text-primary">Home</span>
-          </button>
+            <span>Home</span>
+          </Link>
 
           {/* Projects */}
-          <button
-            className="flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground min-h-[56px] flex-1"
+          <Link
+            to="/projects"
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium transition-colors hover:bg-accent min-h-[56px] flex-1",
+              location.pathname === '/projects' ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
             aria-label="Projects"
           >
             <svg
@@ -164,7 +207,7 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
             <span>Projects</span>
-          </button>
+          </Link>
 
           {/* Settings */}
           <button

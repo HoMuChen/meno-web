@@ -1,6 +1,9 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Sidebar } from '@/components/Sidebar'
 import { LoginPage } from '@/pages/Login'
+import { HomePage } from '@/pages/Home'
 import { ProjectsPage } from '@/pages/Projects'
+import { MeetingDetailsPage } from '@/pages/MeetingDetails'
 import { useAuth } from '@/hooks/useAuth'
 
 function App() {
@@ -13,15 +16,22 @@ function App() {
 
   // Main app content when authenticated
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar - Desktop only, Mobile bottom nav included in Sidebar component */}
-      <Sidebar user={user} onLogout={logout} />
+    <BrowserRouter>
+      <div className="flex h-screen bg-background">
+        {/* Sidebar - Desktop only, Mobile bottom nav included in Sidebar component */}
+        <Sidebar user={user} onLogout={logout} />
 
-      {/* Main Content - Adjusted for mobile bottom navigation */}
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-        <ProjectsPage />
-      </main>
-    </div>
+        {/* Main Content - Adjusted for mobile bottom navigation */}
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:projectId/meetings/:meetingId" element={<MeetingDetailsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
   )
 }
 
