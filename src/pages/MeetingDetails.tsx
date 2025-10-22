@@ -255,7 +255,12 @@ export function MeetingDetailsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Duration:</span>
                 <span className="text-sm text-muted-foreground">
-                  {Math.floor(meeting.duration / 60)} minutes {meeting.duration % 60} seconds
+                  {(() => {
+                    const totalSeconds = Math.floor(meeting.duration)
+                    const minutes = Math.floor(totalSeconds / 60)
+                    const seconds = totalSeconds % 60
+                    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+                  })()}
                 </span>
               </div>
             )}

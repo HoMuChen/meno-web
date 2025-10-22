@@ -16,6 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import api, { ApiException } from '@/lib/api'
 import type { Project } from '@/types/project'
 import type { Meeting, MeetingsResponse } from '@/types/meeting'
@@ -27,6 +35,8 @@ export function ProjectDetailPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch project details and meetings
   const fetchData = async (showLoading = true) => {
@@ -113,6 +123,30 @@ export function ProjectDetailPage() {
     }
   }
 
+  // Handle delete meeting
+  const handleDeleteMeeting = async () => {
+    if (!meetingToDelete || !projectId) return
+
+    try {
+      setIsDeleting(true)
+      await api.delete(`/api/projects/${projectId}/meetings/${meetingToDelete._id}`)
+
+      // Remove the meeting from the list
+      setMeetings((prev) => prev.filter((m) => m._id !== meetingToDelete._id))
+
+      // Close the dialog
+      setMeetingToDelete(null)
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to delete meeting')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Initial data fetch
   useEffect(() => {
     fetchData(true)
@@ -138,8 +172,9 @@ export function ProjectDetailPage() {
   // Format duration (seconds to mm:ss)
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'N/A'
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+    const totalSeconds = Math.floor(seconds)
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
@@ -392,50 +427,53 @@ export function ProjectDetailPage() {
                     </svg>
                     <span>{formatDuration(meeting.duration)}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                        <line x1="16" x2="16" y1="2" y2="6" />
+                        <line x1="8" x2="8" y1="2" y2="6" />
+                        <line x1="3" x2="21" y1="10" y2="10" />
+                      </svg>
+                      <span>{formatDate(meeting.createdAt)}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMeetingToDelete(meeting)
+                      }}
+                      aria-label="Delete meeting"
                     >
-                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                      <line x1="16" x2="16" y1="2" y2="6" />
-                      <line x1="8" x2="8" y1="2" y2="6" />
-                      <line x1="3" x2="21" y1="10" y2="10" />
-                    </svg>
-                    <span>{formatDate(meeting.createdAt)}</span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(`/projects/${projectId}/meetings/${meeting._id}`)
-                    }}
-                  >
-                    View Details
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="ml-2"
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -490,12 +528,13 @@ export function ProjectDetailPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/projects/${projectId}/meetings/${meeting._id}`)
+                              setMeetingToDelete(meeting)
                             }}
+                            aria-label="Delete meeting"
                           >
-                            View
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -506,9 +545,10 @@ export function ProjectDetailPage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className="ml-2"
                             >
-                              <path d="m9 18 6-6-6-6" />
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                             </svg>
                           </Button>
                         </TableCell>
@@ -521,6 +561,34 @@ export function ProjectDetailPage() {
           </Card>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!meetingToDelete} onOpenChange={(open) => !open && setMeetingToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Meeting</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{meetingToDelete?.title}"? This action cannot be undone and will permanently remove the meeting and all its transcriptions.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMeetingToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMeeting}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
