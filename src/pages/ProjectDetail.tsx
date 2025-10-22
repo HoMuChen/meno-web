@@ -29,15 +29,17 @@ export function ProjectDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Fetch project details and meetings
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!projectId) return
+  const fetchData = async (showLoading = true) => {
+    if (!projectId) return
 
-      try {
+    try {
+      if (showLoading) {
         setIsLoading(true)
-        setError(null)
+      }
+      setError(null)
 
-        // Fetch project details
+      // Fetch project details (only on first load)
+      if (!project) {
         const projectResponse = await api.get<{ success: boolean; data: Project }>(
           `/api/projects/${projectId}`
         )
@@ -45,28 +47,93 @@ export function ProjectDetailPage() {
         if (projectResponse.success && projectResponse.data) {
           setProject(projectResponse.data)
         }
+      }
 
-        // Fetch meetings for this project
-        const meetingsResponse = await api.get<MeetingsResponse>(
-          `/api/projects/${projectId}/meetings`
-        )
+      // Fetch meetings for this project
+      const meetingsResponse = await api.get<MeetingsResponse>(
+        `/api/projects/${projectId}/meetings`
+      )
 
-        if (meetingsResponse.success && meetingsResponse.data) {
-          setMeetings(meetingsResponse.data.meetings)
-        }
-      } catch (err) {
-        if (err instanceof ApiException) {
-          setError(err.message || 'Failed to load project details')
-        } else {
-          setError('Unable to connect to the server')
-        }
-      } finally {
+      if (meetingsResponse.success && meetingsResponse.data) {
+        setMeetings(meetingsResponse.data.meetings)
+      }
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to load project details')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      if (showLoading) {
         setIsLoading(false)
       }
     }
+  }
 
-    fetchData()
+  // Fetch only incomplete meetings
+  const fetchIncompleteMeetings = async () => {
+    if (!projectId) return
+
+    try {
+      // Get incomplete meeting IDs
+      const incompleteMeetingIds = meetings
+        .filter(
+          (m) =>
+            m.transcriptionStatus === 'pending' ||
+            m.transcriptionStatus === 'processing'
+        )
+        .map((m) => m._id)
+
+      if (incompleteMeetingIds.length === 0) return
+
+      // Fetch each incomplete meeting
+      const updatedMeetingsPromises = incompleteMeetingIds.map((id) =>
+        api.get<MeetingResponse>(`/api/projects/${projectId}/meetings/${id}`)
+      )
+
+      const responses = await Promise.all(updatedMeetingsPromises)
+
+      // Update meetings state with new data
+      setMeetings((prevMeetings) => {
+        const updatedMeetings = [...prevMeetings]
+        responses.forEach((response) => {
+          if (response.success && response.data) {
+            const index = updatedMeetings.findIndex(
+              (m) => m._id === response.data._id
+            )
+            if (index !== -1) {
+              updatedMeetings[index] = response.data
+            }
+          }
+        })
+        return updatedMeetings
+      })
+    } catch (err) {
+      console.error('Failed to fetch incomplete meetings:', err)
+    }
+  }
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchData(true)
   }, [projectId])
+
+  // Polling for incomplete meetings
+  useEffect(() => {
+    const hasProcessingMeetings = meetings.some(
+      (meeting) =>
+        meeting.transcriptionStatus === 'pending' ||
+        meeting.transcriptionStatus === 'processing'
+    )
+
+    if (hasProcessingMeetings) {
+      const interval = setInterval(() => {
+        fetchIncompleteMeetings()
+      }, 3000)
+
+      return () => clearInterval(interval)
+    }
+  }, [meetings])
 
   // Format duration (seconds to mm:ss)
   const formatDuration = (seconds?: number) => {
@@ -181,10 +248,12 @@ export function ProjectDetailPage() {
 
       {/* Project Info */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-        {project.description && (
-          <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
-        )}
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+          {project.description && (
+            <p className="text-sm text-muted-foreground">{project.description}</p>
+          )}
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Created {formatDate(project.createdAt)}
         </p>
@@ -194,13 +263,7 @@ export function ProjectDetailPage() {
       <div>
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Meetings</h2>
-            <p className="text-xs text-muted-foreground">
-              {meetings.length} {meetings.length === 1 ? 'meeting' : 'meetings'} in this
-              project
-            </p>
-          </div>
+          <h2 className="text-lg font-bold tracking-tight">Meetings</h2>
           <Button className="w-full sm:w-auto">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -284,50 +347,50 @@ export function ProjectDetailPage() {
                     <CardTitle className="line-clamp-2 text-sm">
                       {meeting.title}
                     </CardTitle>
-                    <span
-                      className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
-                    >
-                      {meeting.transcriptionStatus}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
+                      >
+                        {meeting.transcriptionStatus}
+                      </span>
+                      {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      <span>{formatDuration(meeting.duration)}</span>
+                  {/* Progress Bar for Processing */}
+                  {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && meeting.transcriptionProgress !== undefined && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{meeting.transcriptionProgress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full bg-primary transition-all duration-500 ease-out"
+                          style={{ width: `${meeting.transcriptionProgress}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" x2="12" y1="3" y2="15" />
-                      </svg>
-                      <span className="capitalize">{meeting.recordingType}</span>
-                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>{formatDuration(meeting.duration)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <svg
@@ -390,7 +453,6 @@ export function ProjectDetailPage() {
                       <TableHead>Title</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Duration</TableHead>
-                      <TableHead>Type</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -406,14 +468,23 @@ export function ProjectDetailPage() {
                       >
                         <TableCell className="font-medium">{meeting.title}</TableCell>
                         <TableCell>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
-                          >
-                            {meeting.transcriptionStatus}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
+                            >
+                              {meeting.transcriptionStatus}
+                            </span>
+                            {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                {meeting.transcriptionProgress !== undefined && (
+                                  <span className="text-xs text-muted-foreground">{meeting.transcriptionProgress}%</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{formatDuration(meeting.duration)}</TableCell>
-                        <TableCell className="capitalize">{meeting.recordingType}</TableCell>
                         <TableCell>{formatDate(meeting.createdAt)}</TableCell>
                         <TableCell className="text-right">
                           <Button
