@@ -19,7 +19,7 @@ interface NewMeetingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectId: string
-  onSuccess: () => void
+  onSuccess: (meetingId: string) => void
 }
 
 export function NewMeetingDialog({
@@ -180,7 +180,7 @@ export function NewMeetingDialog({
       clearInterval(progressInterval)
       setUploadProgress(100)
 
-      if (response.success) {
+      if (response.success && response.data) {
         // Reset form
         setTitle('')
         setAudioFile(null)
@@ -190,7 +190,7 @@ export function NewMeetingDialog({
 
         // Close dialog and notify parent
         onOpenChange(false)
-        onSuccess()
+        onSuccess(response.data._id)
       }
     } catch (err) {
       if (err instanceof ApiException) {

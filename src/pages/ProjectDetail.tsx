@@ -610,7 +610,9 @@ export function ProjectDetailPage() {
           open={isNewMeetingDialogOpen}
           onOpenChange={setIsNewMeetingDialogOpen}
           projectId={projectId}
-          onSuccess={() => fetchData(false)}
+          onSuccess={() => {
+            fetchData(false)
+          }}
         />
       )}
     </div>

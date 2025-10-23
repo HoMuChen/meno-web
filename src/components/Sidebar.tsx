@@ -1,5 +1,4 @@
-import { useState, useRef } from 'react'
-import type { ChangeEvent } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
@@ -15,9 +14,8 @@ import {
   DialogContent,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { useProjects } from '@/hooks/useProjects'
-import api, { ApiException } from '@/lib/api'
-import type { CreateMeetingResponse } from '@/types/meeting'
 
 interface User {
   _id: string
@@ -36,102 +34,24 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { projects } = useProjects()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [actionType, setActionType] = useState<'upload' | 'record' | null>(null)
+  const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
 
-  const ALLOWED_AUDIO_TYPES = [
-    'audio/mpeg', 'audio/wav', 'audio/x-m4a',
-    'audio/m4a', 'audio/webm', 'audio/ogg',
-  ]
-  const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
-
-  const generateMeetingTitle = () => {
-    const now = new Date()
-    return `Meeting - ${now.toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-    })} ${now.toLocaleTimeString('en-US', {
-      hour: 'numeric', minute: '2-digit', hour12: true,
-    })}`
-  }
-
-  const validateFile = (file: File): string | null => {
-    if (!ALLOWED_AUDIO_TYPES.includes(file.type)) {
-      return 'Invalid file type. Please upload MP3, WAV, M4A, WebM, or OGG audio files.'
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return 'File size exceeds 100MB limit.'
-    }
-    return null
-  }
-
-  const handleUploadClick = () => {
-    setActionType('upload')
-    setIsAddMenuOpen(false)
+  const handleNewMeetingClick = () => {
     setIsProjectModalOpen(true)
-  }
-
-  const handleRecordClick = () => {
-    setActionType('record')
-    setIsAddMenuOpen(false)
-    alert('Audio recording feature coming soon!')
   }
 
   const handleProjectSelect = (projectId: string) => {
     setIsProjectModalOpen(false)
-    if (actionType === 'upload') {
-      fileInputRef.current?.setAttribute('data-project-id', projectId)
-      fileInputRef.current?.click()
-    }
+    setSelectedProjectId(projectId)
+    setIsNewMeetingDialogOpen(true)
   }
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    const projectId = e.target.getAttribute('data-project-id')
-
-    if (!file || !projectId) return
-
-    const validationError = validateFile(file)
-    if (validationError) {
-      alert(validationError)
-      return
-    }
-
-    await uploadMeeting(file, projectId)
-  }
-
-  const uploadMeeting = async (file: File, projectId: string) => {
-    try {
-      setIsUploading(true)
-
-      const formData = new FormData()
-      formData.append('audioFile', file)
-      formData.append('title', generateMeetingTitle())
-      formData.append('recordingType', 'upload')
-
-      const response = await api.postFormData<CreateMeetingResponse>(
-        `/api/projects/${projectId}/meetings`,
-        formData
-      )
-
-      if (response.success && response.data) {
-        navigate(`/projects/${projectId}/meetings/${response.data._id}`)
-      }
-    } catch (err) {
-      if (err instanceof ApiException) {
-        alert(err.message || 'Failed to upload meeting')
-      } else {
-        alert('Unable to connect to the server')
-      }
-    } finally {
-      setIsUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
+  const handleMeetingSuccess = (meetingId: string) => {
+    setIsNewMeetingDialogOpen(false)
+    navigate(`/projects/${selectedProjectId}/meetings/${meetingId}`)
   }
 
   return (
@@ -320,75 +240,28 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
 
           {/* Floating Add Meeting Button - Center */}
           <div className="flex-1 flex justify-center">
-            <DropdownMenu open={isAddMenuOpen} onOpenChange={setIsAddMenuOpen}>
-              <DropdownMenuTrigger
-                className="absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95"
-                aria-label="Add Meeting"
-                disabled={isUploading}
+            <button
+              onClick={handleNewMeetingClick}
+              className="absolute -top-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="New Meeting"
+              disabled={projects.length === 0}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 12h14" />
-                  <path d="M12 5v14" />
-                </svg>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 mb-2" align="center" side="top">
-                <DropdownMenuItem
-                  onClick={handleUploadClick}
-                  disabled={projects.length === 0}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" x2="12" y1="3" y2="15" />
-                  </svg>
-                  Upload Audio
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRecordClick} disabled>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="22" />
-                  </svg>
-                  Record Audio
-                  <span className="ml-auto text-xs text-muted-foreground">Soon</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </button>
           </div>
 
           {/* Settings */}
@@ -526,15 +399,15 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/mpeg,audio/wav,audio/x-m4a,audio/m4a,audio/webm,audio/ogg"
-        onChange={handleFileChange}
-        className="hidden"
-        aria-label="Upload audio file"
-      />
+      {/* New Meeting Dialog */}
+      {selectedProjectId && (
+        <NewMeetingDialog
+          open={isNewMeetingDialogOpen}
+          onOpenChange={setIsNewMeetingDialogOpen}
+          projectId={selectedProjectId}
+          onSuccess={handleMeetingSuccess}
+        />
+      )}
     </>
   )
 }
