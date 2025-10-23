@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -22,6 +23,8 @@ import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
 import type { MeetingResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 
+type ContentTab = 'transcription' | 'summary'
+
 export function MeetingDetailsPage() {
   const { projectId, meetingId } = useParams<{ projectId: string; meetingId: string }>()
   const navigate = useNavigate()
@@ -30,6 +33,10 @@ export function MeetingDetailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [transcriptions, setTranscriptions] = useState<any>(null)
+  const [activeContentTab, setActiveContentTab] = useState<ContentTab>('transcription')
+  const [streamingSummary, setStreamingSummary] = useState<string>('')
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -91,6 +98,75 @@ export function MeetingDetailsPage() {
       }
     } catch (err) {
       console.error('Failed to fetch transcriptions:', err)
+    }
+  }
+
+  // Generate summary with SSE streaming
+  const generateSummary = async () => {
+    if (!projectId || !meetingId) return
+
+    setIsGeneratingSummary(true)
+    setSummaryError(null)
+    setStreamingSummary('')
+
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || '/api'}/api/projects/${projectId}/meetings/${meetingId}/summary/stream`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+
+      if (!reader) {
+        throw new Error('Response body is not readable')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            try {
+              const event = JSON.parse(data)
+
+              if (event.type === 'chunk') {
+                setStreamingSummary((prev) => prev + event.content)
+              } else if (event.type === 'complete') {
+                // Update meeting with the complete summary
+                if (event.meeting) {
+                  setMeeting(event.meeting)
+                }
+                setIsGeneratingSummary(false)
+              } else if (event.type === 'error') {
+                setSummaryError(event.message)
+                setIsGeneratingSummary(false)
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE event:', parseError)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate summary:', err)
+      setSummaryError(err instanceof Error ? err.message : 'Failed to generate summary')
+      setIsGeneratingSummary(false)
     }
   }
 
@@ -243,14 +319,25 @@ export function MeetingDetailsPage() {
             <div className="flex items-start gap-2">
               <span className="text-sm font-medium pt-1">Content:</span>
               <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-primary text-primary-foreground cursor-pointer">
+                <span
+                  onClick={() => setActiveContentTab('transcription')}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors ${
+                    activeContentTab === 'transcription'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                  }`}
+                >
                   Transcription
                 </span>
-                <span className="group relative inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors">
+                <span
+                  onClick={() => setActiveContentTab('summary')}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors ${
+                    activeContentTab === 'summary'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                  }`}
+                >
                   Summary
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border">
-                    Coming Soon
-                  </span>
                 </span>
                 <span className="group relative inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors">
                   People
@@ -271,64 +358,160 @@ export function MeetingDetailsPage() {
       </Card>
 
       {/* Transcription Content */}
-      {transcriptions && transcriptions.length > 0 ? (
+      {activeContentTab === 'transcription' && (
+        <>
+          {transcriptions && transcriptions.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-primary">Transcription</CardTitle>
+                <CardDescription className="text-xs">
+                  {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {transcriptions.map((segment: any) => {
+                    return (
+                      <div
+                        key={segment._id}
+                        className="rounded-lg border bg-muted/30 p-3"
+                      >
+                        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                          {segment.speaker && (
+                            <span className="font-medium text-foreground">{segment.speaker}</span>
+                          )}
+                          {segment.startTime !== undefined && segment.endTime !== undefined && (
+                            <span className="text-muted-foreground">
+                              {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm leading-relaxed">{segment.text}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ) : meeting?.transcriptionStatus === 'completed' ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mb-3 text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <h3 className="mb-1 text-base font-semibold">No Transcription Available</h3>
+                <p className="text-xs text-muted-foreground">
+                  The transcription is completed but no content was found.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+        </>
+      )}
+
+      {/* Summary Content */}
+      {activeContentTab === 'summary' && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-primary">Transcription</CardTitle>
+            <CardTitle className="text-lg text-primary">Summary</CardTitle>
             <CardDescription className="text-xs">
-              {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''}
+              AI-generated meeting summary
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {transcriptions.map((segment: any) => {
-                return (
-                  <div
-                    key={segment._id}
-                    className="rounded-lg border bg-muted/30 p-3"
-                  >
-                    <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      {segment.speaker && (
-                        <span className="font-medium text-foreground">{segment.speaker}</span>
-                      )}
-                      {segment.startTime !== undefined && segment.endTime !== undefined && (
-                        <span className="text-muted-foreground">
-                          {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm leading-relaxed">{segment.text}</p>
+            {meeting?.summary || streamingSummary ? (
+              <>
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown>
+                    {meeting?.summary || streamingSummary}
+                  </ReactMarkdown>
+                </div>
+                {isGeneratingSummary && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <span>Generating summary...</span>
                   </div>
-                )
-              })}
-            </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                {summaryError ? (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-3 text-destructive"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" x2="12" y1="8" y2="12" />
+                      <line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                    <h3 className="mb-2 text-base font-semibold text-destructive">Failed to Generate Summary</h3>
+                    <p className="mb-4 text-xs text-muted-foreground">{summaryError}</p>
+                    <Button onClick={generateSummary} disabled={isGeneratingSummary}>
+                      Try Again
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-3 text-muted-foreground"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      <line x1="9" x2="15" y1="10" y2="10" />
+                      <line x1="12" x2="12" y1="7" y2="13" />
+                    </svg>
+                    <h3 className="mb-2 text-base font-semibold">No Summary Available</h3>
+                    <p className="mb-4 text-xs text-muted-foreground">
+                      Generate an AI summary of this meeting's transcription.
+                    </p>
+                    <Button onClick={generateSummary} disabled={isGeneratingSummary}>
+                      {isGeneratingSummary ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                          Generating...
+                        </>
+                      ) : (
+                        'Generate Summary'
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
-      ) : meeting?.transcriptionStatus === 'completed' ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mb-3 text-muted-foreground"
-              aria-hidden="true"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <h3 className="mb-1 text-base font-semibold">No Transcription Available</h3>
-            <p className="text-xs text-muted-foreground">
-              The transcription is completed but no content was found.
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
+      )}
     </div>
   )
 }

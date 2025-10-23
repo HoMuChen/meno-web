@@ -8,6 +8,7 @@ export interface Meeting {
   transcriptionStatus: 'pending' | 'processing' | 'completed' | 'failed'
   transcriptionProgress?: number
   description?: string
+  summary?: string
   metadata?: {
     fileSize?: number
     mimeType?: string
