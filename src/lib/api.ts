@@ -5,6 +5,8 @@
  * Uses environment variables to configure the API base URL.
  */
 
+import { getAuthToken } from '@/lib/auth'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 export interface ApiError {
@@ -34,8 +36,8 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
-  // Get auth token from localStorage
-  const token = localStorage.getItem('auth_token')
+  // Get auth token from centralized auth module
+  const token = getAuthToken()
 
   const config: RequestInit = {
     ...options,
@@ -117,7 +119,7 @@ export const api = {
     options?: RequestInit
   ): Promise<T> => {
     const url = `${API_BASE_URL}${endpoint}`
-    const token = localStorage.getItem('auth_token')
+    const token = getAuthToken()
 
     const config: RequestInit = {
       ...options,

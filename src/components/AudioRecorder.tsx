@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
+import { formatDuration } from '@/lib/formatters'
 
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, duration: number) => void
@@ -19,13 +20,6 @@ export function AudioRecorder({ onRecordingComplete, onCancel }: AudioRecorderPr
     stopRecording,
     clearRecording,
   } = useAudioRecorder()
-
-  // Format duration as mm:ss
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
 
   // Handle use recording
   const handleUseRecording = () => {

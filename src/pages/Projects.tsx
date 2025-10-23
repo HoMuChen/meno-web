@@ -27,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api, { ApiException } from '@/lib/api'
+import { formatDate } from '@/lib/formatters'
 import type { Project, ProjectsResponse, CreateProjectRequest } from '@/types/project'
 
 export function ProjectsPage() {
@@ -421,11 +422,7 @@ export function ProjectsPage() {
                       <line x1="3" x2="21" y1="10" y2="10" />
                     </svg>
                     <span>
-                      {new Date(project.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {formatDate(project.createdAt)}
                     </span>
                   </div>
                 </div>

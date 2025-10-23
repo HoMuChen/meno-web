@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AudioRecorder } from '@/components/AudioRecorder'
 import api, { ApiException } from '@/lib/api'
+import { generateMeetingTitle } from '@/lib/formatters'
 import type { CreateMeetingResponse } from '@/types/meeting'
 
 type TabMode = 'record' | 'upload'
@@ -76,18 +77,7 @@ export function NewMeetingDialog({
 
     // Auto-generate title if empty
     if (!title.trim()) {
-      const now = new Date()
-      const dateStr = now.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })
-      const timeStr = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-      setTitle(`Meeting - ${dateStr} ${timeStr}`)
+      setTitle(generateMeetingTitle())
     }
   }
 
@@ -112,18 +102,7 @@ export function NewMeetingDialog({
 
       // Auto-generate title if still empty
       if (!finalTitle) {
-        const now = new Date()
-        const dateStr = now.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })
-        const timeStr = now.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        })
-        finalTitle = `Meeting - ${dateStr} ${timeStr}`
+        finalTitle = generateMeetingTitle()
       }
 
       // Convert blob to file

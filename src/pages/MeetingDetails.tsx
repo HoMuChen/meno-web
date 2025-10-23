@@ -16,7 +16,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import api, { ApiException } from '@/lib/api'
+import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
 import type { MeetingResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 
@@ -213,41 +215,18 @@ export function MeetingDetailsPage() {
             {/* Transcription Status */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Status:</span>
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                  meeting?.transcriptionStatus === 'completed'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : meeting?.transcriptionStatus === 'processing'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                    : meeting?.transcriptionStatus === 'failed'
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                }`}
-              >
-                {meeting?.transcriptionStatus || 'Unknown'}
-              </span>
+              <StatusBadge
+                status={meeting?.transcriptionStatus || 'pending'}
+                showSpinner
+              />
               {(meeting?.transcriptionStatus === 'pending' || meeting?.transcriptionStatus === 'processing') && (
-                <div className="ml-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  <span>Processing...</span>
-                </div>
+                <span className="text-xs text-muted-foreground">Processing...</span>
               )}
             </div>
 
             {/* Progress Bar for Processing */}
             {(meeting?.transcriptionStatus === 'pending' || meeting?.transcriptionStatus === 'processing') && meeting?.transcriptionProgress !== undefined && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Transcription Progress</span>
-                  <span className="font-medium">{meeting.transcriptionProgress}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${meeting.transcriptionProgress}%` }}
-                  />
-                </div>
-              </div>
+              <StatusProgressBar progress={meeting.transcriptionProgress} />
             )}
 
             {/* Duration */}
@@ -255,12 +234,7 @@ export function MeetingDetailsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Duration:</span>
                 <span className="text-sm text-muted-foreground">
-                  {(() => {
-                    const totalSeconds = Math.floor(meeting.duration)
-                    const minutes = Math.floor(totalSeconds / 60)
-                    const seconds = totalSeconds % 60
-                    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-                  })()}
+                  {formatDuration(meeting.duration)}
                 </span>
               </div>
             )}
@@ -308,14 +282,6 @@ export function MeetingDetailsPage() {
           <CardContent>
             <div className="space-y-3">
               {transcriptions.map((segment: any) => {
-                // Format time from milliseconds to mm:ss
-                const formatTime = (ms: number) => {
-                  const totalSeconds = Math.floor(ms / 1000)
-                  const minutes = Math.floor(totalSeconds / 60)
-                  const seconds = totalSeconds % 60
-                  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-                }
-
                 return (
                   <div
                     key={segment._id}
@@ -327,7 +293,7 @@ export function MeetingDetailsPage() {
                       )}
                       {segment.startTime !== undefined && segment.endTime !== undefined && (
                         <span className="text-muted-foreground">
-                          {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+                          {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
                         </span>
                       )}
                     </div>

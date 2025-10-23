@@ -24,7 +24,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
+import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import api, { ApiException } from '@/lib/api'
+import { formatDuration, formatDateTime } from '@/lib/formatters'
 import type { Project } from '@/types/project'
 import type { Meeting, MeetingResponse, MeetingsResponse } from '@/types/meeting'
 
@@ -170,36 +172,6 @@ export function ProjectDetailPage() {
     }
   }, [meetings])
 
-  // Format duration (seconds to mm:ss)
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return 'N/A'
-    const totalSeconds = Math.floor(seconds)
-    const mins = Math.floor(totalSeconds / 60)
-    const secs = totalSeconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
-  // Get status badge styling
-  const getStatusBadge = (status: Meeting['transcriptionStatus']) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-      processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-      completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-      failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    }
-    return styles[status] || styles.pending
-  }
 
   if (isLoading) {
     return (
@@ -291,7 +263,7 @@ export function ProjectDetailPage() {
           )}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Created {formatDate(project.createdAt)}
+          Created {formatDateTime(project.createdAt)}
         </p>
       </div>
 
@@ -383,16 +355,12 @@ export function ProjectDetailPage() {
                     <CardTitle className="line-clamp-2 text-sm text-primary">
                       {meeting.title}
                     </CardTitle>
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
-                      >
-                        {meeting.transcriptionStatus}
-                      </span>
-                      {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && (
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      )}
-                    </div>
+                    <StatusBadge
+                      status={meeting.transcriptionStatus}
+                      progress={meeting.transcriptionProgress}
+                      showSpinner
+                      showProgress
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -405,18 +373,7 @@ export function ProjectDetailPage() {
 
                   {/* Progress Bar for Processing */}
                   {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && meeting.transcriptionProgress !== undefined && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="font-medium">{meeting.transcriptionProgress}%</span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full bg-primary transition-all duration-500 ease-out"
-                          style={{ width: `${meeting.transcriptionProgress}%` }}
-                        />
-                      </div>
-                    </div>
+                    <StatusProgressBar progress={meeting.transcriptionProgress} />
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <svg
@@ -453,7 +410,7 @@ export function ProjectDetailPage() {
                         <line x1="8" x2="8" y1="2" y2="6" />
                         <line x1="3" x2="21" y1="10" y2="10" />
                       </svg>
-                      <span>{formatDate(meeting.createdAt)}</span>
+                      <span>{formatDateTime(meeting.createdAt)}</span>
                     </div>
                     <Button
                       variant="ghost"
@@ -520,24 +477,15 @@ export function ProjectDetailPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadge(meeting.transcriptionStatus)}`}
-                            >
-                              {meeting.transcriptionStatus}
-                            </span>
-                            {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && (
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                {meeting.transcriptionProgress !== undefined && (
-                                  <span className="text-xs text-muted-foreground">{meeting.transcriptionProgress}%</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          <StatusBadge
+                            status={meeting.transcriptionStatus}
+                            progress={meeting.transcriptionProgress}
+                            showSpinner
+                            showProgress
+                          />
                         </TableCell>
                         <TableCell>{formatDuration(meeting.duration)}</TableCell>
-                        <TableCell>{formatDate(meeting.createdAt)}</TableCell>
+                        <TableCell>{formatDateTime(meeting.createdAt)}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"

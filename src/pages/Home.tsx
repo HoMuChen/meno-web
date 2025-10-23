@@ -13,9 +13,11 @@ import {
   DialogContent,
 } from '@/components/ui/dialog'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
+import { StatusBadge } from '@/components/StatusBadge'
 import { useProjects } from '@/hooks/useProjects'
 import { useMeetings } from '@/hooks/useMeetings'
 import { useAuth } from '@/hooks/useAuth'
+import { formatDuration, formatDate } from '@/lib/formatters'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -28,37 +30,6 @@ export function HomePage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-
-
-  const formatDuration = (duration?: number) => {
-    if (!duration) return 'N/A'
-    const totalSeconds = Math.floor(duration)
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'processing':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-      default:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-    }
-  }
 
   const handleNewMeetingClick = () => {
     setIsProjectModalOpen(true)
@@ -125,13 +96,7 @@ export function HomePage() {
                   <div className="space-y-2">
                     {/* Status Badge */}
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
-                          meeting.transcriptionStatus
-                        )}`}
-                      >
-                        {meeting.transcriptionStatus}
-                      </span>
+                      <StatusBadge status={meeting.transcriptionStatus} />
                       {meeting.duration && (
                         <span className="text-xs text-muted-foreground">
                           {formatDuration(meeting.duration)}

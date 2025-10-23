@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import api, { ApiException } from '@/lib/api'
+import {
+  hasDefaultProject,
+  setDefaultProjectFlag,
+} from '@/lib/auth'
 import type {
   Project,
   ProjectsResponse,
@@ -57,9 +61,7 @@ export function useProjects() {
   const ensureDefaultProject = useCallback(async (): Promise<Project | null> => {
     try {
       // Check if we've already created a default project
-      const hasDefaultProject = localStorage.getItem('has_default_project')
-
-      if (hasDefaultProject === 'true') {
+      if (hasDefaultProject()) {
         // Still fetch projects to get the actual project
         await fetchProjects()
         return projects.length > 0 ? projects[0] : null
@@ -73,13 +75,13 @@ export function useProjects() {
           // No projects exist, create default
           const defaultProject = await createDefaultProject()
           if (defaultProject) {
-            localStorage.setItem('has_default_project', 'true')
+            setDefaultProjectFlag()
             return defaultProject
           }
         } else {
           // Projects exist, use first one
           setProjects(response.data.projects)
-          localStorage.setItem('has_default_project', 'true')
+          setDefaultProjectFlag()
           return response.data.projects[0]
         }
       }
