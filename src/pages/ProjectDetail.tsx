@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import api, { ApiException } from '@/lib/api'
 import type { Project } from '@/types/project'
 import type { Meeting, MeetingResponse, MeetingsResponse } from '@/types/meeting'
@@ -36,6 +37,7 @@ export function ProjectDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
 
   // Fetch project details and meetings
   const fetchData = async (showLoading = true) => {
@@ -298,7 +300,7 @@ export function ProjectDetailPage() {
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
-          <Button className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto" onClick={() => setIsNewMeetingDialogOpen(true)}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -345,7 +347,7 @@ export function ProjectDetailPage() {
               <p className="mb-6 max-w-sm text-center text-sm text-muted-foreground sm:text-base">
                 Get started by creating your first meeting for this project
               </p>
-              <Button size="lg" className="min-h-[44px]">
+              <Button size="lg" className="min-h-[44px]" onClick={() => setIsNewMeetingDialogOpen(true)}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -601,6 +603,16 @@ export function ProjectDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* New Meeting Dialog */}
+      {projectId && (
+        <NewMeetingDialog
+          open={isNewMeetingDialogOpen}
+          onOpenChange={setIsNewMeetingDialogOpen}
+          projectId={projectId}
+          onSuccess={() => fetchData(false)}
+        />
+      )}
     </div>
   )
 }
