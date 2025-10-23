@@ -18,6 +18,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api, { ApiException } from '@/lib/api'
@@ -31,6 +37,8 @@ export function ProjectsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Form state
   const [name, setName] = useState('')
@@ -95,6 +103,30 @@ export function ProjectsPage() {
       }
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  // Handle delete project
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return
+
+    try {
+      setIsDeleting(true)
+      await api.delete(`/api/projects/${projectToDelete._id}`)
+
+      // Remove the project from the list
+      setProjects((prev) => prev.filter((p) => p._id !== projectToDelete._id))
+
+      // Close the dialog
+      setProjectToDelete(null)
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to delete project')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -300,14 +332,71 @@ export function ProjectsPage() {
               onClick={() => navigate(`/projects/${project._id}`)}
             >
               <CardHeader className="pb-3">
-                <CardTitle className="line-clamp-1 text-base text-primary sm:text-lg">
-                  {project.name}
-                </CardTitle>
-                {project.description && (
-                  <CardDescription className="line-clamp-2 text-sm">
-                    {project.description}
-                  </CardDescription>
-                )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="line-clamp-1 text-base text-primary sm:text-lg">
+                      {project.name}
+                    </CardTitle>
+                    {project.description && (
+                      <CardDescription className="line-clamp-2 text-sm mt-1.5">
+                        {project.description}
+                      </CardDescription>
+                    )}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-muted"
+                        aria-label="Project options"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="1" />
+                          <circle cx="12" cy="5" r="1" />
+                          <circle cx="12" cy="19" r="1" />
+                        </svg>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProjectToDelete(project)
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-2"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </CardHeader>
 
               <CardContent>
@@ -345,6 +434,34 @@ export function ProjectsPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone and will permanently remove the project and all its associated meetings.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setProjectToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProject}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
