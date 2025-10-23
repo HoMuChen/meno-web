@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AudioRecorder } from '@/components/AudioRecorder'
+import { useUsage } from '@/hooks/useUsage'
 import api, { ApiException } from '@/lib/api'
 import { generateMeetingTitle } from '@/lib/formatters'
 import type { CreateMeetingResponse } from '@/types/meeting'
@@ -39,6 +40,7 @@ export function NewMeetingDialog({
   const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { isOverLimit, usedMinutes, limitMinutes, refreshUsage } = useUsage()
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +92,12 @@ export function NewMeetingDialog({
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check usage limit
+    if (isOverLimit) {
+      setError(`Monthly limit reached (${limitMinutes} minutes). Please upgrade to continue.`)
+      return
+    }
 
     let fileToUpload: File | null = null
     let finalTitle = title.trim()
@@ -167,6 +175,9 @@ export function NewMeetingDialog({
         setRecordedDuration(0)
         setUploadProgress(0)
 
+        // Refresh usage data
+        refreshUsage()
+
         // Close dialog and notify parent
         onOpenChange(false)
         onSuccess(response.data._id)
@@ -208,16 +219,28 @@ export function NewMeetingDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Usage Limit Warning */}
+          {isOverLimit && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+              <p className="font-medium">Monthly Limit Reached</p>
+              <p className="mt-1 opacity-90">
+                You've used {Math.round(usedMinutes)} of {limitMinutes} minutes this month.
+                Upgrade to continue uploading meetings.
+              </p>
+            </div>
+          )}
+
           {/* Tab Buttons */}
           <div className="flex gap-2 rounded-lg border bg-muted p-1">
             <button
               type="button"
               onClick={() => setActiveTab('record')}
+              disabled={isOverLimit}
               className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === 'record'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+              } ${isOverLimit ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -240,11 +263,12 @@ export function NewMeetingDialog({
             <button
               type="button"
               onClick={() => setActiveTab('upload')}
+              disabled={isOverLimit}
               className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === 'upload'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+              } ${isOverLimit ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -267,7 +291,7 @@ export function NewMeetingDialog({
           </div>
 
           {/* Error Message */}
-          {error && (
+          {error && !isOverLimit && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
               <p className="font-medium">Error</p>
               <p className="mt-1 opacity-90">{error}</p>

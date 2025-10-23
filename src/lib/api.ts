@@ -162,4 +162,15 @@ export const api = {
   },
 }
 
+/**
+ * Get current month usage statistics for authenticated user
+ */
+export async function getCurrentMonthUsage() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  return api.get(`/api/users/me/usage?year=${year}&month=${month}`)
+}
+
 export default api

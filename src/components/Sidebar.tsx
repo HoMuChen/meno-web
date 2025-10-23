@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
+import { UsageIndicator } from '@/components/UsageIndicator'
 import { useProjects } from '@/hooks/useProjects'
 
 interface User {
@@ -124,6 +125,14 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
           Projects
         </Link>
       </nav>
+
+      {/* Usage Section */}
+      <div className="border-t p-3">
+        <div className="mb-2">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Monthly Usage</p>
+          <UsageIndicator showDetails={false} />
+        </div>
+      </div>
 
       {/* User Section */}
       <div className="border-t p-3">
