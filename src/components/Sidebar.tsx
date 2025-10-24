@@ -17,21 +17,24 @@ import { Button } from '@/components/ui/button'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { UsageIndicator } from '@/components/UsageIndicator'
 import { useProjects } from '@/hooks/useProjects'
+import type { CurrentMonthUsage } from '@/types/usage'
 
 interface User {
   _id: string
   email: string
   name: string
   avatar?: string
+  currentMonthUsage: CurrentMonthUsage
 }
 
 interface SidebarProps {
   className?: string
   user: User | null
   onLogout: () => void
+  onUsageRefresh: () => void
 }
 
-export function Sidebar({ className, user, onLogout }: SidebarProps) {
+export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const { projects } = useProjects()
@@ -130,7 +133,7 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
       <div className="border-t p-3">
         <div className="mb-2">
           <p className="text-xs font-medium text-muted-foreground mb-2">Monthly Usage</p>
-          <UsageIndicator showDetails={false} />
+          <UsageIndicator usage={user?.currentMonthUsage} showDetails={false} />
         </div>
       </div>
 
@@ -138,9 +141,17 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
       <div className="border-t p-3">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground">
-              {user?.name.charAt(0).toUpperCase() || 'U'}
-            </div>
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground">
+                {user?.name.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="flex-1 overflow-hidden text-left">
               <p className="truncate text-sm font-medium">{user?.name}</p>
             </div>
@@ -299,9 +310,17 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground min-h-[56px] flex-1">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                {user?.name.charAt(0).toUpperCase() || 'U'}
-              </div>
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="h-6 w-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {user?.name.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
               <span>Account</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 mb-2" align="end" side="top">
@@ -415,6 +434,8 @@ export function Sidebar({ className, user, onLogout }: SidebarProps) {
           onOpenChange={setIsNewMeetingDialogOpen}
           projectId={selectedProjectId}
           onSuccess={handleMeetingSuccess}
+          usage={user?.currentMonthUsage}
+          onUsageRefresh={onUsageRefresh}
         />
       )}
     </>

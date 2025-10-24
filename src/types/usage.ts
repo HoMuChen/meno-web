@@ -1,3 +1,10 @@
+export interface CurrentMonthUsage {
+  duration: number // in seconds
+  lastReset: string
+  month: number
+  year: number
+}
+
 export interface UsageData {
   userId: string
   year: number

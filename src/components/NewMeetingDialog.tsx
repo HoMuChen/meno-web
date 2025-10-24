@@ -14,6 +14,7 @@ import { useUsage } from '@/hooks/useUsage'
 import api, { ApiException } from '@/lib/api'
 import { generateMeetingTitle } from '@/lib/formatters'
 import type { CreateMeetingResponse } from '@/types/meeting'
+import type { CurrentMonthUsage } from '@/types/usage'
 
 type TabMode = 'record' | 'upload'
 
@@ -22,6 +23,8 @@ interface NewMeetingDialogProps {
   onOpenChange: (open: boolean) => void
   projectId: string
   onSuccess: (meetingId: string) => void
+  usage: CurrentMonthUsage | null | undefined
+  onUsageRefresh: () => void
 }
 
 export function NewMeetingDialog({
@@ -29,6 +32,8 @@ export function NewMeetingDialog({
   onOpenChange,
   projectId,
   onSuccess,
+  usage,
+  onUsageRefresh,
 }: NewMeetingDialogProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('record')
   const [title, setTitle] = useState('')
@@ -40,7 +45,7 @@ export function NewMeetingDialog({
   const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { isOverLimit, usedMinutes, limitMinutes, refreshUsage } = useUsage()
+  const { isOverLimit, usedMinutes, limitMinutes } = useUsage({ usage })
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +181,7 @@ export function NewMeetingDialog({
         setUploadProgress(0)
 
         // Refresh usage data
-        refreshUsage()
+        onUsageRefresh()
 
         // Close dialog and notify parent
         onOpenChange(false)

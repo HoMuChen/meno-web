@@ -1,4 +1,5 @@
 import { useUsage } from '@/hooks/useUsage'
+import type { CurrentMonthUsage } from '@/types/usage'
 import {
   Tooltip,
   TooltipContent,
@@ -7,11 +8,12 @@ import {
 } from '@/components/ui/tooltip'
 
 interface UsageIndicatorProps {
+  usage: CurrentMonthUsage | null | undefined
   showDetails?: boolean
 }
 
-export function UsageIndicator({ showDetails = true }: UsageIndicatorProps) {
-  const { usedMinutes, limitMinutes, percentageUsed, colorStatus, usage } = useUsage()
+export function UsageIndicator({ usage, showDetails = true }: UsageIndicatorProps) {
+  const { usedMinutes, limitMinutes, percentageUsed, colorStatus } = useUsage({ usage })
 
   const getProgressBarColor = () => {
     switch (colorStatus) {
@@ -59,13 +61,6 @@ export function UsageIndicator({ showDetails = true }: UsageIndicatorProps) {
               {limitMinutes} minutes
             </span>
           </div>
-
-          {/* Meeting Count */}
-          {usage && (
-            <div className="text-xs opacity-90">
-              {usage.meetingCount} meeting{usage.meetingCount !== 1 ? 's' : ''} this month
-            </div>
-          )}
 
           {/* Period Info */}
           {showDetails && usage && (
