@@ -329,17 +329,17 @@ export function ProjectsPage() {
           {projects.map((project) => (
             <Card
               key={project._id}
-              className="group relative overflow-hidden transition-all duration-200 hover:border-primary/50 cursor-pointer"
+              className="cursor-pointer transition-shadow hover:shadow-lg"
               onClick={() => navigate(`/projects/${project._id}`)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="line-clamp-1 text-base text-primary sm:text-lg">
+                    <CardTitle className="text-base">
                       {project.name}
                     </CardTitle>
                     {project.description && (
-                      <CardDescription className="line-clamp-2 text-sm mt-1.5">
+                      <CardDescription className="text-xs">
                         {project.description}
                       </CardDescription>
                     )}
