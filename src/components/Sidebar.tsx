@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { UsageIndicator } from '@/components/UsageIndicator'
-import { useProjects } from '@/hooks/useProjects'
+import { useProjectsContext } from '@/contexts/ProjectsContext'
 import type { CurrentMonthUsage } from '@/types/usage'
 
 interface User {
@@ -37,7 +37,7 @@ interface SidebarProps {
 export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { projects } = useProjects()
+  const { projects } = useProjectsContext()
 
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)

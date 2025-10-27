@@ -14,15 +14,15 @@ import {
 } from '@/components/ui/dialog'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { StatusBadge } from '@/components/StatusBadge'
-import { useProjects } from '@/hooks/useProjects'
+import { useProjectsContext } from '@/contexts/ProjectsContext'
 import { useMeetings } from '@/hooks/useMeetings'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDuration, formatDate } from '@/lib/formatters'
 
 export function HomePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { projects, isLoading: isLoadingProjects } = useProjects()
+  const { projects, isLoading: isLoadingProjects } = useProjectsContext()
   const { meetings, isLoading: isLoadingMeetings, error: meetingsError } = useMeetings({
     userId: user?._id || null,
     limit: 5,
@@ -240,6 +240,8 @@ export function HomePage() {
           onOpenChange={setIsNewMeetingDialogOpen}
           projectId={selectedProjectId}
           onSuccess={handleMeetingSuccess}
+          usage={user?.currentMonthUsage}
+          onUsageRefresh={() => {}}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import type { ReactNode } from 'react'
 import {
   getAuthToken,
   setAuthToken,
@@ -16,22 +17,32 @@ interface User {
   currentMonthUsage: CurrentMonthUsage
 }
 
-interface AuthState {
+interface AuthContextType {
   isAuthenticated: boolean
   user: User | null
   token: string | null
   isLoading: boolean
+  login: (token: string, user: User) => Promise<void>
+  logout: () => void
+  refreshUser: () => Promise<void>
 }
 
-export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [authState, setAuthState] = useState<{
+    isAuthenticated: boolean
+    user: User | null
+    token: string | null
+    isLoading: boolean
+  }>({
     isAuthenticated: false,
     user: null,
     token: null,
     isLoading: true,
   })
 
-  // Validate token and initialize auth state on mount
+  // Validate token and initialize auth state on mount - runs only once
   useEffect(() => {
     const validateToken = async () => {
       const token = getAuthToken()
@@ -87,9 +98,9 @@ export function useAuth() {
     }
 
     validateToken()
-  }, [])
+  }, []) // Empty dependency array - only runs once on mount
 
-  const login = async (token: string, user: User) => {
+  const login = useCallback(async (token: string, user: User) => {
     setAuthToken(token)
     setStoredUser(user)
     setAuthState({
@@ -98,9 +109,9 @@ export function useAuth() {
       token,
       isLoading: false,
     })
-  }
+  }, [])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearAuthData()
     setAuthState({
       isAuthenticated: false,
@@ -108,7 +119,7 @@ export function useAuth() {
       token: null,
       isLoading: false,
     })
-  }
+  }, [])
 
   const refreshUser = useCallback(async () => {
     const token = getAuthToken()
@@ -132,10 +143,23 @@ export function useAuth() {
     }
   }, [])
 
-  return {
-    ...authState,
+  const value: AuthContextType = {
+    isAuthenticated: authState.isAuthenticated,
+    user: authState.user,
+    token: authState.token,
+    isLoading: authState.isLoading,
     login,
     logout,
     refreshUser,
   }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }

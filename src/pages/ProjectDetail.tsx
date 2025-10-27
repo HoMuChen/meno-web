@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
+import { useAuth } from '@/contexts/AuthContext'
 import api, { ApiException } from '@/lib/api'
 import { formatDuration, formatDateTime } from '@/lib/formatters'
 import type { Project } from '@/types/project'
@@ -33,6 +34,7 @@ import type { Meeting, MeetingResponse, MeetingsResponse } from '@/types/meeting
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [project, setProject] = useState<Project | null>(null)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -561,6 +563,8 @@ export function ProjectDetailPage() {
           onSuccess={() => {
             fetchData(false)
           }}
+          usage={user?.currentMonthUsage}
+          onUsageRefresh={() => {}}
         />
       )}
     </div>

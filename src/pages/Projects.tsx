@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -28,48 +28,22 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api, { ApiException } from '@/lib/api'
 import { formatDate } from '@/lib/formatters'
-import type { Project, ProjectsResponse, CreateProjectRequest } from '@/types/project'
+import { useProjectsContext } from '@/contexts/ProjectsContext'
+import type { Project, CreateProjectRequest } from '@/types/project'
 
 export function ProjectsPage() {
   const navigate = useNavigate()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { projects, isLoading, error, refreshProjects } = useProjectsContext()
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Form state
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-
-  // Fetch projects
-  const fetchProjects = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const response = await api.get<ProjectsResponse>('/api/projects')
-
-      if (response.success && response.data) {
-        setProjects(response.data.projects)
-      }
-    } catch (err) {
-      if (err instanceof ApiException) {
-        setError(err.message || 'Failed to load projects')
-      } else {
-        setError('Unable to connect to the server')
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Load projects on mount
-  useEffect(() => {
-    fetchProjects()
-  }, [])
 
   // Handle create project
   const handleCreateProject = async (e: FormEvent) => {
@@ -94,7 +68,7 @@ export function ProjectsPage() {
         setName('')
         setDescription('')
         // Refresh projects list
-        fetchProjects()
+        refreshProjects()
       }
     } catch (err) {
       if (err instanceof ApiException) {
@@ -113,18 +87,19 @@ export function ProjectsPage() {
 
     try {
       setIsDeleting(true)
+      setDeleteError(null)
       await api.delete(`/api/projects/${projectToDelete._id}`)
 
-      // Remove the project from the list
-      setProjects((prev) => prev.filter((p) => p._id !== projectToDelete._id))
+      // Refresh the projects list
+      await refreshProjects()
 
       // Close the dialog
       setProjectToDelete(null)
     } catch (err) {
       if (err instanceof ApiException) {
-        setError(err.message || 'Failed to delete project')
+        setDeleteError(err.message || 'Failed to delete project')
       } else {
-        setError('Unable to connect to the server')
+        setDeleteError('Unable to connect to the server')
       }
     } finally {
       setIsDeleting(false)
@@ -441,10 +416,18 @@ export function ProjectsPage() {
               Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone and will permanently remove the project and all its associated meetings.
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {deleteError}
+            </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setProjectToDelete(null)}
+              onClick={() => {
+                setProjectToDelete(null)
+                setDeleteError(null)
+              }}
               disabled={isDeleting}
             >
               Cancel
