@@ -46,3 +46,29 @@ export interface MeetingsResponse {
     }
   }
 }
+
+export interface Transcription {
+  _id: string
+  meetingId: string
+  startTime: number
+  endTime: number
+  speaker: string
+  text: string
+  confidence: number
+  isEdited: boolean
+  createdAt: string
+}
+
+export interface TranscriptionsResponse {
+  success: boolean
+  message: string
+  data: {
+    transcriptions: Transcription[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      pages: number
+    }
+  }
+}

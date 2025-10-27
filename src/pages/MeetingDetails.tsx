@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,7 @@ import {
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import api, { ApiException } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
-import type { MeetingResponse } from '@/types/meeting'
+import type { MeetingResponse, TranscriptionsResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 
 type ContentTab = 'transcription' | 'summary'
@@ -32,8 +32,16 @@ export function MeetingDetailsPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [transcriptions, setTranscriptions] = useState<any>(null)
+  const [transcriptions, setTranscriptions] = useState<any[]>([])
+  const [hasMoreTranscriptions, setHasMoreTranscriptions] = useState(true)
+  const [isLoadingTranscriptions, setIsLoadingTranscriptions] = useState(false)
   const [activeContentTab, setActiveContentTab] = useState<ContentTab>('transcription')
+
+  // Refs for stable infinite scroll
+  const isLoadingRef = useRef(false)
+  const transcriptionPageRef = useRef(1)
+  const hasMoreTranscriptionsRef = useRef(true)
+  const initialLoadCompleteRef = useRef(false)
   const [streamingSummary, setStreamingSummary] = useState<string>('')
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -85,21 +93,82 @@ export function MeetingDetailsPage() {
   }
 
   // Fetch transcriptions when completed
-  const fetchTranscriptions = async () => {
-    if (!meetingId) return
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchTranscriptions = useCallback(async (page = 1, append = false) => {
+    if (!meetingId || isLoadingRef.current) {
+      return
+    }
 
     try {
-      const response = await api.get<any>(
-        `/api/meetings/${meetingId}/transcriptions`
+      isLoadingRef.current = true
+      setIsLoadingTranscriptions(true)
+
+      const response = await api.get<TranscriptionsResponse>(
+        `/api/meetings/${meetingId}/transcriptions?page=${page}&limit=50`
       )
 
-      if (response.success && response.data && response.data.transcriptions) {
-        setTranscriptions(response.data.transcriptions)
+      if (response.success && response.data) {
+        const newTranscriptions = response.data.transcriptions
+        const pagination = response.data.pagination
+
+        if (append) {
+          setTranscriptions(prev => [...prev, ...newTranscriptions])
+        } else {
+          setTranscriptions(newTranscriptions)
+        }
+
+        // Update both state and refs for stable callbacks
+        const newPage = pagination.page
+        const hasMore = pagination.page < pagination.pages
+
+        setHasMoreTranscriptions(hasMore)
+        transcriptionPageRef.current = newPage
+        hasMoreTranscriptionsRef.current = hasMore
+
+        // Mark initial load as complete after first successful fetch
+        if (!initialLoadCompleteRef.current) {
+          initialLoadCompleteRef.current = true
+        }
+
+        // After loading, check if page is scrollable, if not, load more automatically
+        // Only auto-load after initial load is complete
+        setTimeout(() => {
+          if (!initialLoadCompleteRef.current || isLoadingRef.current) {
+            return
+          }
+
+          // Find the scrollable container (main element)
+          const scrollContainer = document.querySelector('main')
+          if (!scrollContainer) {
+            return
+          }
+
+          const scrollHeight = scrollContainer.scrollHeight
+          const clientHeight = scrollContainer.clientHeight
+          const isScrollable = scrollHeight > clientHeight
+
+          if (!isScrollable && hasMore && !isLoadingRef.current) {
+            fetchTranscriptions(newPage + 1, true)
+          }
+        }, 300)
       }
     } catch (err) {
       console.error('Failed to fetch transcriptions:', err)
+    } finally {
+      isLoadingRef.current = false
+      setIsLoadingTranscriptions(false)
     }
-  }
+  }, [meetingId])
+
+  // Load more transcriptions - uses refs for stable callback
+  const loadMoreTranscriptions = useCallback(() => {
+    if (isLoadingRef.current || !hasMoreTranscriptionsRef.current) {
+      return
+    }
+
+    const nextPage = transcriptionPageRef.current + 1
+    fetchTranscriptions(nextPage, true)
+  }, [fetchTranscriptions])
 
   // Generate summary with SSE streaming
   const generateSummary = async () => {
@@ -190,11 +259,46 @@ export function MeetingDetailsPage() {
       return () => clearInterval(interval)
     }
 
-    // Fetch transcriptions when completed
-    if (meeting.transcriptionStatus === 'completed' && !transcriptions) {
-      fetchTranscriptions()
+    // Fetch transcriptions when completed - only once
+    if (meeting.transcriptionStatus === 'completed' && !initialLoadCompleteRef.current && transcriptions.length === 0) {
+      fetchTranscriptions(1, false)
     }
-  }, [meeting?.transcriptionStatus, transcriptions])
+  }, [meeting?.transcriptionStatus, transcriptions.length, fetchTranscriptions])
+
+  // Infinite scroll effect
+  useEffect(() => {
+    if (activeContentTab !== 'transcription') {
+      return
+    }
+
+    // Don't attach scroll listener until initial load completes
+    if (!initialLoadCompleteRef.current) {
+      return
+    }
+
+    // Find the scrollable container (main element)
+    const scrollContainer = document.querySelector('main')
+    if (!scrollContainer) {
+      return
+    }
+
+    const handleScroll = () => {
+      const scrollTop = scrollContainer.scrollTop
+      const scrollHeight = scrollContainer.scrollHeight
+      const clientHeight = scrollContainer.clientHeight
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+
+      // Load more when user scrolls to bottom (within 200px)
+      if (distanceFromBottom < 200) {
+        loadMoreTranscriptions()
+      }
+    }
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll)
+    }
+  }, [activeContentTab, loadMoreTranscriptions, initialLoadCompleteRef.current])
 
   if (isLoading) {
     return (
@@ -360,12 +464,12 @@ export function MeetingDetailsPage() {
       {/* Transcription Content */}
       {activeContentTab === 'transcription' && (
         <>
-          {transcriptions && transcriptions.length > 0 ? (
+          {transcriptions.length > 0 ? (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg text-primary">Transcription</CardTitle>
                 <CardDescription className="text-xs">
-                  {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''}
+                  {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''} loaded
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -391,9 +495,25 @@ export function MeetingDetailsPage() {
                     )
                   })}
                 </div>
+
+                {/* Loading Indicator */}
+                {isLoadingTranscriptions && (
+                  <div className="mt-4 flex items-center justify-center py-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                )}
+
+                {/* End of results message */}
+                {!hasMoreTranscriptions && transcriptions.length > 0 && (
+                  <div className="mt-4 flex justify-center py-4">
+                    <p className="text-sm text-muted-foreground">
+                      No more transcriptions to load
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ) : meeting?.transcriptionStatus === 'completed' ? (
+          ) : meeting?.transcriptionStatus === 'completed' && !isLoadingTranscriptions ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-8">
                 <svg
