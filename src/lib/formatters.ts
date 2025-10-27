@@ -48,14 +48,21 @@ export function formatDateTime(dateString: string): string {
 }
 
 /**
- * Format time from milliseconds to mm:ss
+ * Format time from milliseconds to hh:mm:ss or mm:ss
  * @param ms - Time in milliseconds
- * @returns Formatted string in mm:ss format
+ * @returns Formatted string in hh:mm:ss format (if hours > 0) or mm:ss format
  */
 export function formatTimeFromMs(ms: number): string {
+  if (ms === undefined || ms === null) return '00:00'
+
   const totalSeconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
 
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }

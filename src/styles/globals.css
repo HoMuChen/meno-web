@@ -57,3 +57,42 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Prose/Markdown styles for light and dark modes */
+@layer components {
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose :where(code):not(:where([class~="not-prose"] *)) {
+    @apply bg-muted text-foreground px-1.5 py-0.5 rounded;
+  }
+
+  .prose :where(pre):not(:where([class~="not-prose"] *)) {
+    @apply bg-muted text-foreground border border-border;
+  }
+
+  .prose :where(pre code):not(:where([class~="not-prose"] *)) {
+    @apply bg-transparent p-0;
+  }
+
+  .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    @apply border-l-primary text-muted-foreground;
+  }
+
+  .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
+    @apply text-foreground;
+  }
+
+  .prose :where(strong):not(:where([class~="not-prose"] *)) {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose :where(a):not(:where([class~="not-prose"] *)) {
+    @apply text-primary no-underline hover:underline;
+  }
+
+  .prose :where(ul, ol):not(:where([class~="not-prose"] *)) {
+    @apply text-foreground;
+  }
+}

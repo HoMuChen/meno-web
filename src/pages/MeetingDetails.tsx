@@ -433,8 +433,27 @@ export function MeetingDetailsPage() {
           <CardContent>
             {meeting?.summary || streamingSummary ? (
               <>
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }: any) => {
+                        return inline ? (
+                          <code className="bg-muted text-foreground px-1.5 py-0.5 rounded text-sm" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="block bg-muted text-foreground p-3 rounded text-sm overflow-x-auto" {...props}>
+                            {children}
+                          </code>
+                        )
+                      },
+                      pre: ({ children, ...props }: any) => (
+                        <pre className="bg-muted text-foreground border border-border rounded p-3 overflow-x-auto my-4" {...props}>
+                          {children}
+                        </pre>
+                      ),
+                    }}
+                  >
                     {meeting?.summary || streamingSummary}
                   </ReactMarkdown>
                 </div>
