@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,18 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed))
+  }, [isCollapsed])
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed)
+  }
 
   const handleNewMeetingClick = () => {
     setIsProjectModalOpen(true)
@@ -63,13 +76,28 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
       {/* Desktop Sidebar - Hidden on mobile */}
       <aside
         className={cn(
-          'hidden md:flex h-screen w-60 flex-col border-r bg-card',
+          'hidden md:flex h-screen flex-col border-r bg-card transition-all duration-300 ease-in-out',
+          isCollapsed ? 'w-16' : 'w-60',
           className
         )}
       >
       {/* Sidebar Header */}
-      <div className="flex h-14 items-center border-b px-4">
-        <h1 className="text-base font-semibold">Meno</h1>
+      <div className="flex h-14 items-center border-b px-4 justify-between">
+        {!isCollapsed && <h1 className="text-base font-semibold">Meno</h1>}
+        <button
+          onClick={toggleSidebar}
+          className={cn(
+            "rounded-md p-1.5 hover:bg-accent transition-colors",
+            isCollapsed && "mx-auto"
+          )}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -80,8 +108,10 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
             location.pathname === '/'
               ? "bg-accent text-accent-foreground"
-              : "hover:bg-accent/50"
+              : "hover:bg-accent/50",
+            isCollapsed && "justify-center"
           )}
+          title={isCollapsed ? "Home" : undefined}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -98,7 +128,7 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          Home
+          {!isCollapsed && <span>Home</span>}
         </Link>
 
         <Link
@@ -107,8 +137,10 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
             location.pathname === '/projects'
               ? "bg-accent text-accent-foreground"
-              : "hover:bg-accent/50"
+              : "hover:bg-accent/50",
+            isCollapsed && "justify-center"
           )}
+          title={isCollapsed ? "Projects" : undefined}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -125,22 +157,30 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
           </svg>
-          Projects
+          {!isCollapsed && <span>Projects</span>}
         </Link>
       </nav>
 
       {/* Usage Section */}
-      <div className="border-t p-3">
-        <div className="mb-2">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Monthly Usage</p>
-          <UsageIndicator usage={user?.currentMonthUsage} showDetails={false} />
+      {!isCollapsed && (
+        <div className="border-t p-3">
+          <div className="mb-2">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Monthly Usage</p>
+            <UsageIndicator usage={user?.currentMonthUsage} showDetails={false} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* User Section */}
       <div className="border-t p-3">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
+          <DropdownMenuTrigger
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent",
+              isCollapsed && "justify-center"
+            )}
+            title={isCollapsed ? user?.name : undefined}
+          >
             {user?.avatar ? (
               <img
                 src={user.avatar}
@@ -152,23 +192,27 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
                 {user?.name.charAt(0).toUpperCase() || 'U'}
               </div>
             )}
-            <div className="flex-1 overflow-hidden text-left">
-              <p className="truncate text-sm font-medium">{user?.name}</p>
-            </div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            {!isCollapsed && (
+              <>
+                <div className="flex-1 overflow-hidden text-left">
+                  <p className="truncate text-sm font-medium">{user?.name}</p>
+                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-muted-foreground"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" side="top">
             <DropdownMenuLabel className="font-normal">
