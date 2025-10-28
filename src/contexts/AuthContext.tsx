@@ -9,12 +9,26 @@ import {
 import api from '@/lib/api'
 import type { CurrentMonthUsage } from '@/types/usage'
 
+interface TierLimits {
+  monthlyDuration: number // in seconds
+  maxFileSize: number // in bytes
+}
+
+interface Tier {
+  _id: string
+  name: string
+  displayName: string
+  limits: TierLimits
+  features: string[]
+}
+
 interface User {
   _id: string
   email: string
   name: string
   avatar?: string
   currentMonthUsage: CurrentMonthUsage
+  tier: Tier
 }
 
 interface AuthContextType {

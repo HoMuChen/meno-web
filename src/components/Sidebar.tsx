@@ -18,14 +18,32 @@ import { Button } from '@/components/ui/button'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { UsageIndicator } from '@/components/UsageIndicator'
 import { useProjectsContext } from '@/contexts/ProjectsContext'
-import type { CurrentMonthUsage } from '@/types/usage'
+
+interface TierLimits {
+  monthlyDuration: number
+  maxFileSize: number
+}
+
+interface Tier {
+  _id: string
+  name: string
+  displayName: string
+  limits: TierLimits
+  features: string[]
+}
 
 interface User {
   _id: string
   email: string
   name: string
   avatar?: string
-  currentMonthUsage: CurrentMonthUsage
+  currentMonthUsage: {
+    duration: number
+    lastReset: string
+    month: number
+    year: number
+  }
+  tier: Tier
 }
 
 interface SidebarProps {
@@ -166,7 +184,11 @@ export function Sidebar({ className, user, onLogout, onUsageRefresh }: SidebarPr
         <div className="border-t p-3">
           <div className="mb-2">
             <p className="text-xs font-medium text-muted-foreground mb-2">Monthly Usage</p>
-            <UsageIndicator usage={user?.currentMonthUsage} showDetails={false} />
+            <UsageIndicator
+              usage={user?.currentMonthUsage}
+              showDetails={false}
+              monthlyDurationLimit={user?.tier?.limits?.monthlyDuration}
+            />
           </div>
         </div>
       )}

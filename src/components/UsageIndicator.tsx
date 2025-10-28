@@ -10,10 +10,14 @@ import {
 interface UsageIndicatorProps {
   usage: CurrentMonthUsage | null | undefined
   showDetails?: boolean
+  monthlyDurationLimit?: number // in seconds
 }
 
-export function UsageIndicator({ usage, showDetails = true }: UsageIndicatorProps) {
-  const { usedMinutes, limitMinutes, percentageUsed, colorStatus } = useUsage({ usage })
+export function UsageIndicator({ usage, showDetails = true, monthlyDurationLimit }: UsageIndicatorProps) {
+  const { usedMinutes, limitMinutes, percentageUsed, colorStatus } = useUsage({
+    usage,
+    monthlyDurationLimit,
+  })
 
   const getProgressBarColor = () => {
     switch (colorStatus) {

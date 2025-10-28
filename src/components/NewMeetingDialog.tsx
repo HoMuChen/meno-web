@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AudioRecorder } from '@/components/AudioRecorder'
 import { useUsage } from '@/hooks/useUsage'
+import { useAuth } from '@/contexts/AuthContext'
 import api, { ApiException } from '@/lib/api'
 import { generateMeetingTitle } from '@/lib/formatters'
 import type { CreateMeetingResponse } from '@/types/meeting'
@@ -35,6 +36,7 @@ export function NewMeetingDialog({
   usage,
   onUsageRefresh,
 }: NewMeetingDialogProps) {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabMode>('record')
   const [title, setTitle] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
@@ -45,7 +47,13 @@ export function NewMeetingDialog({
   const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { isOverLimit, usedMinutes, limitMinutes } = useUsage({ usage })
+  const { isOverLimit, usedMinutes, limitMinutes } = useUsage({
+    usage,
+    monthlyDurationLimit: user?.tier?.limits?.monthlyDuration,
+  })
+
+  // Get file size limit from user's tier (in bytes)
+  const maxFileSize = user?.tier?.limits?.maxFileSize || 100 * 1024 * 1024 // Default 100MB
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,10 +66,10 @@ export function NewMeetingDialog({
         return
       }
 
-      // Validate file size (100MB)
-      const maxSize = 100 * 1024 * 1024 // 100MB
-      if (file.size > maxSize) {
-        setError('File size exceeds 100MB. Please select a smaller file.')
+      // Validate file size
+      if (file.size > maxFileSize) {
+        const maxSizeMB = Math.round(maxFileSize / (1024 * 1024))
+        setError(`File size exceeds ${maxSizeMB}MB. Please select a smaller file.`)
         return
       }
 
@@ -342,7 +350,7 @@ export function NewMeetingDialog({
                   {audioFile ? audioFile.name : 'Click to select audio file'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  MP3, WAV, WebM, OGG, M4A (max 100MB)
+                  MP3, WAV, WebM, OGG, M4A (max {Math.round(maxFileSize / (1024 * 1024))}MB)
                 </p>
               </div>
               <input
