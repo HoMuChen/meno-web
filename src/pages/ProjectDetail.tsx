@@ -39,7 +39,7 @@ import type { Meeting, MeetingResponse, MeetingsResponse } from '@/types/meeting
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { refreshProjects } = useProjectsContext()
   const [project, setProject] = useState<Project | null>(null)
   const [meetings, setMeetings] = useState<Meeting[]>([])
@@ -740,7 +740,7 @@ export function ProjectDetailPage() {
             fetchData(false)
           }}
           usage={user?.currentMonthUsage}
-          onUsageRefresh={() => {}}
+          onUsageRefresh={refreshUser}
         />
       )}
     </div>

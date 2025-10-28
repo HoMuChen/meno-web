@@ -39,6 +39,7 @@ interface AuthContextType {
   login: (token: string, user: User) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
+  updateUsageOptimistically: (durationInSeconds: number) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -157,6 +158,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const updateUsageOptimistically = useCallback((durationInSeconds: number) => {
+    setAuthState(prev => {
+      if (!prev.user) return prev
+
+      return {
+        ...prev,
+        user: {
+          ...prev.user,
+          currentMonthUsage: {
+            ...prev.user.currentMonthUsage,
+            duration: prev.user.currentMonthUsage.duration + durationInSeconds,
+          },
+        },
+      }
+    })
+  }, [])
+
   const value: AuthContextType = {
     isAuthenticated: authState.isAuthenticated,
     user: authState.user,
@@ -165,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshUser,
+    updateUsageOptimistically,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

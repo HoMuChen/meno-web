@@ -36,7 +36,7 @@ export function NewMeetingDialog({
   usage,
   onUsageRefresh,
 }: NewMeetingDialogProps) {
-  const { user } = useAuth()
+  const { user, updateUsageOptimistically } = useAuth()
   const [activeTab, setActiveTab] = useState<TabMode>('record')
   const [title, setTitle] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
@@ -222,6 +222,12 @@ export function NewMeetingDialog({
       setUploadProgress(100)
 
       if (response.success && response.data) {
+        // Update usage optimistically for instant feedback
+        const meetingDuration = activeTab === 'record' ? recordedDuration : (uploadedDuration || 0)
+        if (meetingDuration > 0) {
+          updateUsageOptimistically(meetingDuration)
+        }
+
         // Reset form
         setTitle('')
         setAudioFile(null)
@@ -230,7 +236,7 @@ export function NewMeetingDialog({
         setUploadedDuration(null)
         setUploadProgress(0)
 
-        // Refresh usage data
+        // Refresh usage data in background for validation
         onUsageRefresh()
 
         // Close dialog and notify parent

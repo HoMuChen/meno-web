@@ -20,7 +20,7 @@ import { formatDuration, formatDateTime } from '@/lib/formatters'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { projects, isLoading: isLoadingProjects } = useProjectsContext()
   const { meetings, isLoading: isLoadingMeetings, error: meetingsError } = useMeetings({
     userId: user?._id || null,
@@ -280,7 +280,7 @@ export function HomePage() {
           projectId={selectedProjectId}
           onSuccess={handleMeetingSuccess}
           usage={user?.currentMonthUsage}
-          onUsageRefresh={() => {}}
+          onUsageRefresh={refreshUser}
         />
       )}
     </div>
