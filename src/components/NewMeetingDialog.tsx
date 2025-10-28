@@ -42,6 +42,7 @@ export function NewMeetingDialog({
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [recordedDuration, setRecordedDuration] = useState(0)
+  const [uploadedDuration, setUploadedDuration] = useState<number | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -55,8 +56,29 @@ export function NewMeetingDialog({
   // Get file size limit from user's tier (in bytes)
   const maxFileSize = user?.tier?.limits?.maxFileSize || 100 * 1024 * 1024 // Default 100MB
 
+  // Calculate audio duration from file
+  const calculateAudioDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio()
+      audio.preload = 'metadata'
+
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(audio.src)
+        const durationInSeconds = Math.floor(audio.duration)
+        resolve(durationInSeconds)
+      }
+
+      audio.onerror = () => {
+        URL.revokeObjectURL(audio.src)
+        reject(new Error('Failed to load audio metadata'))
+      }
+
+      audio.src = URL.createObjectURL(file)
+    })
+  }
+
   // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       // Validate file type
@@ -80,6 +102,21 @@ export function NewMeetingDialog({
       if (!title) {
         const filename = file.name.replace(/\.[^/.]+$/, '') // Remove extension
         setTitle(filename)
+      }
+
+      // Calculate audio duration
+      try {
+        const duration = await calculateAudioDuration(file)
+        // Only set duration if it's a valid, finite number
+        if (isFinite(duration) && duration > 0) {
+          setUploadedDuration(duration)
+        } else {
+          setUploadedDuration(null)
+        }
+      } catch (err) {
+        console.error('Failed to calculate audio duration:', err)
+        // Don't set error here - duration is optional, file upload can still proceed
+        setUploadedDuration(null)
       }
     }
   }
@@ -166,6 +203,11 @@ export function NewMeetingDialog({
         formData.append('duration', recordedDuration.toString())
       }
 
+      // Add duration for uploads (only if extraction was successful and valid)
+      if (activeTab === 'upload' && uploadedDuration !== null && isFinite(uploadedDuration)) {
+        formData.append('duration', uploadedDuration.toString())
+      }
+
       // Simulate progress (since we can't track real upload progress easily with fetch)
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90))
@@ -186,6 +228,7 @@ export function NewMeetingDialog({
         setAudioFile(null)
         setRecordedBlob(null)
         setRecordedDuration(0)
+        setUploadedDuration(null)
         setUploadProgress(0)
 
         // Refresh usage data
@@ -214,6 +257,7 @@ export function NewMeetingDialog({
       setAudioFile(null)
       setRecordedBlob(null)
       setRecordedDuration(0)
+      setUploadedDuration(null)
       setError(null)
       setUploadProgress(0)
       setActiveTab('record')
