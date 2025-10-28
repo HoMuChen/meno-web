@@ -98,10 +98,9 @@ export function NewMeetingDialog({
       setAudioFile(file)
       setError(null)
 
-      // Auto-fill title from filename if empty
+      // Auto-generate title if empty
       if (!title) {
-        const filename = file.name.replace(/\.[^/.]+$/, '') // Remove extension
-        setTitle(filename)
+        setTitle(generateMeetingTitle())
       }
 
       // Calculate audio duration
