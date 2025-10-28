@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import { Check, Circle, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -26,146 +25,6 @@ import type { Project } from '@/types/project'
 
 type ContentTab = 'transcription' | 'summary' | 'events'
 
-interface CategorizedActionItems {
-  pastDue: typeof mockActionItems
-  today: typeof mockActionItems
-  thisWeek: typeof mockActionItems
-  future: typeof mockActionItems
-}
-
-// Helper function to categorize action items by due date
-const categorizeActionItems = (items: typeof mockActionItems): CategorizedActionItems => {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const endOfWeek = new Date(today)
-  endOfWeek.setDate(endOfWeek.getDate() + 7)
-
-  const categorized: CategorizedActionItems = {
-    pastDue: [],
-    today: [],
-    thisWeek: [],
-    future: []
-  }
-
-  items.forEach(item => {
-    const dueDate = new Date(item.dueDate)
-    const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
-
-    if (dueDateOnly < today && !item.completed) {
-      categorized.pastDue.push(item)
-    } else if (dueDateOnly.getTime() === today.getTime()) {
-      categorized.today.push(item)
-    } else if (dueDateOnly >= tomorrow && dueDateOnly < endOfWeek) {
-      categorized.thisWeek.push(item)
-    } else {
-      categorized.future.push(item)
-    }
-  })
-
-  return categorized
-}
-
-// Mock action items data
-const mockActionItems = [
-  // Past Due
-  {
-    id: '1',
-    assignee: 'Sarah Chen',
-    dueDate: '2025-10-20',
-    task: 'Submit expense reports for September',
-    completed: false
-  },
-  {
-    id: '2',
-    assignee: 'Michael Rodriguez',
-    dueDate: '2025-10-24',
-    task: 'Review and approve pull requests',
-    completed: false
-  },
-  {
-    id: '3',
-    assignee: 'David Kim',
-    dueDate: '2025-10-25',
-    task: 'Update security certificates',
-    completed: true
-  },
-  // Today
-  {
-    id: '4',
-    assignee: 'Emma Thompson',
-    dueDate: '2025-10-27',
-    task: 'Send Q4 sales report to stakeholders',
-    completed: false
-  },
-  {
-    id: '5',
-    assignee: 'Lisa Park',
-    dueDate: '2025-10-27',
-    task: 'Finalize meeting agenda for tomorrow',
-    completed: false
-  },
-  {
-    id: '6',
-    assignee: 'Sarah Chen',
-    dueDate: '2025-10-27',
-    task: 'Review design mockups',
-    completed: true
-  },
-  // This Week
-  {
-    id: '7',
-    assignee: 'Michael Rodriguez',
-    dueDate: '2025-10-28',
-    task: 'Fix critical bugs in production environment',
-    completed: false
-  },
-  {
-    id: '8',
-    assignee: 'Emma Thompson',
-    dueDate: '2025-10-29',
-    task: 'Schedule follow-up meeting with design team',
-    completed: false
-  },
-  {
-    id: '9',
-    assignee: 'David Kim',
-    dueDate: '2025-10-31',
-    task: 'Prepare technical documentation for new feature',
-    completed: false
-  },
-  {
-    id: '10',
-    assignee: 'Lisa Park',
-    dueDate: '2025-11-01',
-    task: 'Update project timeline with Q4 milestones',
-    completed: false
-  },
-  // Future
-  {
-    id: '11',
-    assignee: 'Sarah Chen',
-    dueDate: '2025-11-10',
-    task: 'Conduct user interviews for product feedback',
-    completed: false
-  },
-  {
-    id: '12',
-    assignee: 'Michael Rodriguez',
-    dueDate: '2025-11-20',
-    task: 'Update budget spreadsheet with Q4 figures',
-    completed: false
-  },
-  {
-    id: '13',
-    assignee: 'Emma Thompson',
-    dueDate: '2025-12-15',
-    task: 'Create presentation for Q1 planning session',
-    completed: false
-  }
-]
-
 export function MeetingDetailsPage() {
   const { projectId, meetingId } = useParams<{ projectId: string; meetingId: string }>()
   const navigate = useNavigate()
@@ -186,7 +45,6 @@ export function MeetingDetailsPage() {
   const [streamingSummary, setStreamingSummary] = useState<string>('')
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
-  const [actionItems, setActionItems] = useState(mockActionItems)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -311,20 +169,6 @@ export function MeetingDetailsPage() {
     const nextPage = transcriptionPageRef.current + 1
     fetchTranscriptions(nextPage, true)
   }, [fetchTranscriptions])
-
-  // Toggle action item completion
-  const toggleActionItemCompletion = (itemId: string) => {
-    setActionItems(items =>
-      items.map(item =>
-        item.id === itemId ? { ...item, completed: !item.completed } : item
-      )
-    )
-  }
-
-  // Delete action item
-  const deleteActionItem = (itemId: string) => {
-    setActionItems(items => items.filter(item => item.id !== itemId))
-  }
 
   // Generate summary with SSE streaming
   const generateSummary = async () => {
@@ -822,159 +666,28 @@ export function MeetingDetailsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {actionItems.length > 0 ? (
-              (() => {
-                const categorized = categorizeActionItems(actionItems)
-                const renderActionItem = (item: typeof actionItems[0], isPastDue = false) => (
-                  <div
-                    key={item.id}
-                    className={`rounded-lg border p-3 transition-all ${
-                      item.completed
-                        ? 'bg-muted/50 opacity-75'
-                        : isPastDue
-                        ? 'bg-destructive/5 border-destructive/20 hover:bg-destructive/10'
-                        : 'bg-muted/30 hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => toggleActionItemCompletion(item.id)}
-                        className="flex-shrink-0 mt-0.5 rounded-sm hover:bg-accent transition-colors p-0.5"
-                        aria-label={item.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                      >
-                        {item.completed ? (
-                          <div className="h-5 w-5 rounded-sm bg-primary flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
-                          </div>
-                        ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </button>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm mb-1 ${
-                            item.completed
-                              ? 'line-through text-muted-foreground'
-                              : isPastDue
-                              ? 'text-destructive'
-                              : 'text-foreground'
-                          }`}
-                        >
-                          {item.task}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span className="font-medium">{item.assignee}</span>
-                          <span>•</span>
-                          <span className={isPastDue && !item.completed ? 'text-destructive' : ''}>
-                            Due: {new Date(item.dueDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Delete Button */}
-                      <button
-                        onClick={() => deleteActionItem(item.id)}
-                        className="flex-shrink-0 rounded-sm p-1.5 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        aria-label="Delete action item"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )
-
-                return (
-                  <div className="space-y-6">
-                    {/* Past Due */}
-                    {categorized.pastDue.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <h3 className="text-sm font-semibold text-destructive">Past Due</h3>
-                          <span className="text-xs text-muted-foreground">
-                            ({categorized.pastDue.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {categorized.pastDue.map((item) => renderActionItem(item, true))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Today */}
-                    {categorized.today.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <h3 className="text-sm font-semibold text-foreground">Today</h3>
-                          <span className="text-xs text-muted-foreground">
-                            ({categorized.today.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {categorized.today.map((item) => renderActionItem(item))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* This Week */}
-                    {categorized.thisWeek.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <h3 className="text-sm font-semibold text-foreground">This Week</h3>
-                          <span className="text-xs text-muted-foreground">
-                            ({categorized.thisWeek.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {categorized.thisWeek.map((item) => renderActionItem(item))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Future */}
-                    {categorized.future.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <h3 className="text-sm font-semibold text-foreground">Future</h3>
-                          <span className="text-xs text-muted-foreground">
-                            ({categorized.future.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {categorized.future.map((item) => renderActionItem(item))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })()
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mb-3 text-muted-foreground"
-                  aria-hidden="true"
-                >
-                  <path d="M3 12h18" />
-                  <path d="M3 18h18" />
-                  <path d="M3 6h18" />
-                </svg>
-                <h3 className="mb-1 text-base font-semibold">No Action Items</h3>
-                <p className="text-xs text-muted-foreground">
-                  No tasks or follow-ups have been created for this meeting yet.
-                </p>
-              </div>
-            )}
+            <div className="flex flex-col items-center justify-center py-12">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="64"
+                height="64"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mb-4 text-muted-foreground/60"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <h3 className="mb-2 text-lg font-semibold">Coming Soon</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md">
+                Action items tracking is currently under development. Stay tuned for this feature!
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
