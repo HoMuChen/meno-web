@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import api, { ApiException } from '@/lib/api'
 import { formatDate } from '@/lib/formatters'
 import { useProjectsContext } from '@/contexts/ProjectsContext'
@@ -40,10 +41,16 @@ export function ProjectsPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
   // Form state
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
 
   // Handle create project
   const handleCreateProject = async (e: FormEvent) => {
@@ -103,6 +110,59 @@ export function ProjectsPage() {
       }
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  // Open edit dialog with project data
+  const handleOpenEditDialog = (project: Project) => {
+    setProjectToEdit(project)
+    setEditName(project.name)
+    setEditDescription(project.description || '')
+    setUpdateError(null)
+    setIsEditDialogOpen(true)
+  }
+
+  // Handle update project
+  const handleUpdateProject = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!projectToEdit) return
+
+    setUpdateError(null)
+    setIsUpdating(true)
+
+    try {
+      const updateData: Partial<Project> = {
+        name: editName.trim(),
+      }
+
+      // Only include description if it has a value
+      const trimmedDescription = editDescription.trim()
+      if (trimmedDescription) {
+        updateData.description = trimmedDescription
+      } else {
+        updateData.description = ''
+      }
+
+      const response = await api.put<{ success: boolean; data: Project }>(
+        `/api/projects/${projectToEdit._id}`,
+        updateData
+      )
+
+      if (response.success && response.data) {
+        // Refresh projects list
+        await refreshProjects()
+        // Close dialog
+        setIsEditDialogOpen(false)
+        setProjectToEdit(null)
+      }
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setUpdateError(err.message || 'Failed to update project')
+      } else {
+        setUpdateError('Unable to connect to the server')
+      }
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -346,6 +406,30 @@ export function ProjectsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenEditDialog(project)
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-2"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                          <path d="m15 5 4 4" />
+                        </svg>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -406,6 +490,71 @@ export function ProjectsPage() {
           ))}
         </div>
       )}
+
+      {/* Edit Project Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => !open && setIsEditDialogOpen(false)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <form onSubmit={handleUpdateProject}>
+            <DialogHeader>
+              <DialogTitle>Edit Project</DialogTitle>
+              <DialogDescription>
+                Update the project name and description
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {updateError && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  {updateError}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">
+                  Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="edit-name"
+                  placeholder="Enter project name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  disabled={isUpdating}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Enter project description (optional)"
+                  value={editDescription}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditDescription(e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                  disabled={isUpdating}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {editDescription.length}/500 characters
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isUpdating}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdating || !editName.trim()}>
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
