@@ -17,6 +17,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import api, { ApiException } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
@@ -45,6 +53,8 @@ export function MeetingDetailsPage() {
   const [streamingSummary, setStreamingSummary] = useState<string>('')
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -239,6 +249,27 @@ export function MeetingDetailsPage() {
     }
   }
 
+  // Handle delete meeting
+  const handleDeleteMeeting = async () => {
+    if (!projectId || !meetingId) return
+
+    try {
+      setIsDeleting(true)
+      await api.delete(`/api/projects/${projectId}/meetings/${meetingId}`)
+
+      // Navigate back to project detail page after successful deletion
+      navigate(`/projects/${projectId}`)
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to delete meeting')
+      } else {
+        setError('Unable to connect to the server')
+      }
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
   // Initial data fetch
   useEffect(() => {
     fetchMeetingData(true)
@@ -385,10 +416,37 @@ export function MeetingDetailsPage() {
       {/* Meeting Info */}
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg text-primary">{meeting?.title || 'Untitled Meeting'}</CardTitle>
-          <CardDescription className="text-xs">
-            Created on {meeting?.createdAt ? new Date(meeting.createdAt).toLocaleString() : 'Unknown date'}
-          </CardDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg text-primary">{meeting?.title || 'Untitled Meeting'}</CardTitle>
+              <CardDescription className="text-xs">
+                Created on {meeting?.createdAt ? new Date(meeting.createdAt).toLocaleString() : 'Unknown date'}
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setShowDeleteDialog(true)}
+              aria-label="Delete meeting"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -685,6 +743,34 @@ export function MeetingDetailsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => !open && setShowDeleteDialog(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Meeting</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{meeting?.title}"? This action cannot be undone and will permanently remove the meeting, audio file, and all transcriptions.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMeeting}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
