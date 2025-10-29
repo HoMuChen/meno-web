@@ -193,4 +193,24 @@ export async function deleteTranscription(
   )
 }
 
+/**
+ * Search transcriptions using hybrid search (semantic + keyword)
+ */
+export async function searchTranscriptionsHybrid(
+  meetingId: string,
+  query: string,
+  page = 1,
+  limit = 20
+) {
+  const params = new URLSearchParams({
+    q: query,
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+
+  return api.get(
+    `/api/meetings/${meetingId}/transcriptions/hybrid-search?${params.toString()}`
+  )
+}
+
 export default api

@@ -57,6 +57,10 @@ export interface Transcription {
   confidence: number
   isEdited: boolean
   createdAt: string
+  // Search-specific fields (present in hybrid search results)
+  score?: number
+  fusionScore?: number
+  source?: 'semantic' | 'keyword' | 'both'
 }
 
 export interface TranscriptionsResponse {
@@ -69,6 +73,24 @@ export interface TranscriptionsResponse {
       limit: number
       total: number
       pages: number
+    }
+  }
+}
+
+export interface HybridSearchResponse {
+  success: boolean
+  message: string
+  data: {
+    transcriptions: Transcription[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+    }
+    searchType: string
+    components?: {
+      semantic: number
+      keyword: number
     }
   }
 }

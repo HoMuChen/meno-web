@@ -26,10 +26,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
-import api, { ApiException, updateTranscription, deleteTranscription } from '@/lib/api'
+import api, { ApiException, updateTranscription, deleteTranscription, searchTranscriptionsHybrid } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
-import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse } from '@/types/meeting'
+import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse, HybridSearchResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { usePolling } from '@/hooks/usePolling'
 import {
@@ -69,6 +70,18 @@ export function MeetingDetailsPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [deletingTranscriptionId, setDeletingTranscriptionId] = useState<string | null>(null)
   const [showDeleteTranscriptionDialog, setShowDeleteTranscriptionDialog] = useState(false)
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [isSearchMode, setIsSearchMode] = useState(false)
+  const [searchResults, setSearchResults] = useState<Transcription[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchMetadata, setSearchMetadata] = useState<{
+    searchType: string
+    components?: { semantic: number; keyword: number }
+    total: number
+  } | null>(null)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -368,6 +381,56 @@ export function MeetingDetailsPage() {
     setShowDeleteTranscriptionDialog(true)
   }
 
+  // Handle search
+  const handleSearch = async () => {
+    if (!meetingId || !searchQuery.trim()) return
+
+    try {
+      setIsSearching(true)
+      setSearchError(null)
+
+      const response = await searchTranscriptionsHybrid(
+        meetingId,
+        searchQuery.trim()
+      ) as HybridSearchResponse
+
+      if (response.success && response.data) {
+        setSearchResults(response.data.transcriptions)
+        setIsSearchMode(true)
+        setSearchMetadata({
+          searchType: response.data.searchType,
+          components: response.data.components,
+          total: response.data.pagination.total,
+        })
+      }
+    } catch (err) {
+      console.error('Search failed:', err)
+      if (err instanceof ApiException) {
+        setSearchError(err.message || 'Search failed')
+      } else {
+        setSearchError('Unable to perform search')
+      }
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchQuery('')
+    setSearchResults([])
+    setIsSearchMode(false)
+    setSearchError(null)
+    setSearchMetadata(null)
+  }
+
+  // Handle search on Enter key
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
   // Initial data fetch
   useEffect(() => {
     fetchMeetingData(true)
@@ -614,17 +677,94 @@ export function MeetingDetailsPage() {
       {/* Transcription Content */}
       {activeContentTab === 'transcription' && (
         <>
-          {transcriptions.length > 0 ? (
+          {/* Display search results or normal transcriptions */}
+          {(isSearchMode ? searchResults : transcriptions).length > 0 || meeting?.transcriptionStatus === 'completed' ? (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-primary">Transcription</CardTitle>
+                <CardTitle className="text-lg text-primary">
+                  {isSearchMode ? 'Search Results' : 'Transcription'}
+                </CardTitle>
                 <CardDescription className="text-xs">
-                  {transcriptions.length} segment{transcriptions.length !== 1 ? 's' : ''} loaded
+                  {isSearchMode
+                    ? `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} found`
+                    : `${transcriptions.length} segment${transcriptions.length !== 1 ? 's' : ''} loaded`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {transcriptions.map((segment) => {
+                {/* Search Input */}
+                {meeting?.transcriptionStatus === 'completed' && (
+                  <div className="mb-4 pb-4 border-b">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                        <Input
+                          type="text"
+                          placeholder="Search transcriptions..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyPress={handleSearchKeyPress}
+                          className="pl-10"
+                          disabled={isSearching}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleSearch}
+                        disabled={isSearching || !searchQuery.trim()}
+                        size="sm"
+                      >
+                        {isSearching ? (
+                          <>
+                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                            Searching...
+                          </>
+                        ) : (
+                          'Search'
+                        )}
+                      </Button>
+                      {isSearchMode && (
+                        <Button
+                          variant="outline"
+                          onClick={handleClearSearch}
+                          size="sm"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Search Error */}
+                    {searchError && (
+                      <div className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                        {searchError}
+                      </div>
+                    )}
+
+                    {/* Search Metadata */}
+                    {isSearchMode && searchMetadata && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Found {searchMetadata.total} result{searchMetadata.total !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(isSearchMode ? searchResults : transcriptions).length > 0 ? (
+                  <div className="space-y-3">
+                  {(isSearchMode ? searchResults : transcriptions).map((segment) => {
                     const isEditing = editingTranscriptionId === segment._id
                     return (
                       <div
@@ -729,47 +869,75 @@ export function MeetingDetailsPage() {
                       </div>
                     )
                   })}
-                </div>
 
-                {/* Loading Indicator */}
-                {isLoadingTranscriptions && (
-                  <div className="mt-4 flex items-center justify-center py-4">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  {/* Loading Indicator */}
+                  {!isSearchMode && isLoadingTranscriptions && (
+                    <div className="mt-4 flex items-center justify-center py-4">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  )}
+
+                  {/* End of results message */}
+                  {!isSearchMode && !hasMoreTranscriptions && transcriptions.length > 0 && (
+                    <div className="mt-4 flex justify-center py-4">
+                      <p className="text-sm text-muted-foreground">
+                        No more transcriptions to load
+                      </p>
+                    </div>
+                  )}
                   </div>
-                )}
+                ) : null}
 
-                {/* End of results message */}
-                {!hasMoreTranscriptions && transcriptions.length > 0 && (
-                  <div className="mt-4 flex justify-center py-4">
-                    <p className="text-sm text-muted-foreground">
-                      No more transcriptions to load
+                {/* No results found for search */}
+                {isSearchMode && searchResults.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-3 text-muted-foreground"
+                      aria-hidden="true"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <h3 className="mb-1 text-base font-semibold">No Results Found</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Try adjusting your search query or clear the search to see all transcriptions.
                     </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ) : meeting?.transcriptionStatus === 'completed' && !isLoadingTranscriptions ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mb-3 text-muted-foreground"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                <h3 className="mb-1 text-base font-semibold">No Transcription Available</h3>
-                <p className="text-xs text-muted-foreground">
-                  The transcription is completed but no content was found.
-                </p>
+
+                {/* No transcriptions available */}
+                {!isSearchMode && transcriptions.length === 0 && meeting?.transcriptionStatus === 'completed' && !isLoadingTranscriptions && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-3 text-muted-foreground"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <h3 className="mb-1 text-base font-semibold">No Transcription Available</h3>
+                    <p className="text-xs text-muted-foreground">
+                      The transcription is completed but no content was found.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : null}
