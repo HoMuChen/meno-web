@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,18 +17,22 @@ import { useProjectsContext } from '@/contexts/ProjectsContext'
 import { useMeetings } from '@/hooks/useMeetings'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDuration, formatDateTime } from '@/lib/formatters'
+import api from '@/lib/api'
+import type { MeetingResponse, Meeting } from '@/types/meeting'
 
 export function HomePage() {
   const navigate = useNavigate()
   const { user, refreshUser } = useAuth()
   const { projects, isLoading: isLoadingProjects } = useProjectsContext()
-  const { meetings, isLoading: isLoadingMeetings, error: meetingsError } = useMeetings({
+  const { meetings, isLoading: isLoadingMeetings, error: meetingsError, refetchMeetings } = useMeetings({
     userId: user?._id || null,
     limit: 5,
   })
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [localMeetings, setLocalMeetings] = useState<Meeting[]>([])
+  const pollingIntervalRef = useRef<number | null>(null)
 
   const handleNewMeetingClick = () => {
     setIsProjectModalOpen(true)
@@ -40,15 +44,81 @@ export function HomePage() {
     setIsNewMeetingDialogOpen(true)
   }
 
-  const handleMeetingSuccess = (meetingId: string) => {
+  const handleMeetingSuccess = (_meetingId: string) => {
     setIsNewMeetingDialogOpen(false)
-    navigate(`/projects/${selectedProjectId}/meetings/${meetingId}`)
+    // Stay on homepage and reload recent meetings
+    refetchMeetings()
   }
+
+  // Helper to extract projectId (handle both string and object)
+  const getProjectId = (projectId: string | any): string => {
+    return typeof projectId === 'string' ? projectId : projectId._id
+  }
+
+  // Sync localMeetings with meetings from hook
+  useEffect(() => {
+    setLocalMeetings(meetings)
+  }, [meetings])
+
+  // Fetch individual meeting data
+  const fetchSingleMeeting = useCallback(async (meeting: Meeting) => {
+    try {
+      const projectId = getProjectId(meeting.projectId)
+
+      const response = await api.get<MeetingResponse>(
+        `/api/projects/${projectId}/meetings/${meeting._id}`
+      )
+
+      if (response.success && response.data) {
+        // Update the specific meeting in localMeetings
+        setLocalMeetings(prevMeetings =>
+          prevMeetings.map(m =>
+            m._id === meeting._id ? response.data : m
+          )
+        )
+      }
+    } catch (err) {
+      console.error(`Failed to fetch meeting ${meeting._id}:`, err)
+    }
+  }, [getProjectId])
+
+  // Poll for incomplete meetings every 3 seconds
+  useEffect(() => {
+    const incompleteMeetings = localMeetings.filter(
+      meeting => meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing'
+    )
+
+    if (incompleteMeetings.length > 0) {
+      // Set up polling interval if not already set
+      if (!pollingIntervalRef.current) {
+        pollingIntervalRef.current = setInterval(() => {
+          // Poll each incomplete meeting individually
+          incompleteMeetings.forEach(meeting => {
+            fetchSingleMeeting(meeting)
+          })
+        }, 3000) // Poll every 3 seconds
+      }
+    } else {
+      // Clear polling interval if all meetings are complete
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [localMeetings, fetchSingleMeeting])
 
   return (
     <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Recent Meetings Section */}
-      {!isLoadingMeetings && meetings.length > 0 && (
+      {!isLoadingMeetings && localMeetings.length > 0 && (
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Recent Meetings</h2>
@@ -79,11 +149,11 @@ export function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {meetings.map((meeting) => (
+            {localMeetings.map((meeting) => (
               <Card
                 key={meeting._id}
                 className="cursor-pointer transition-all hover:border-primary/50"
-                onClick={() => navigate(`/projects/${meeting.projectId}/meetings/${meeting._id}`)}
+                onClick={() => navigate(`/projects/${getProjectId(meeting.projectId)}/meetings/${meeting._id}`)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
@@ -198,7 +268,7 @@ export function HomePage() {
       )}
 
       {/* Empty State for Meetings */}
-      {!isLoadingMeetings && meetings.length === 0 && !meetingsError && (
+      {!isLoadingMeetings && localMeetings.length === 0 && !meetingsError && (
         <div className="mb-8">
           <div className="rounded-lg border border-dashed p-6 text-center">
             <svg
