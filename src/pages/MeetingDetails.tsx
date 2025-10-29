@@ -28,20 +28,26 @@ import {
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import api, { ApiException, updateTranscription, deleteTranscription } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
-import type { MeetingResponse, TranscriptionsResponse } from '@/types/meeting'
+import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 import { Textarea } from '@/components/ui/textarea'
+import { usePolling } from '@/hooks/usePolling'
+import {
+  TRANSCRIPTION_PAGE_LIMIT,
+  INFINITE_SCROLL_THRESHOLD_PX,
+  AUTO_LOAD_MORE_DELAY_MS,
+} from '@/config/constants'
 
 type ContentTab = 'transcription' | 'summary' | 'events'
 
 export function MeetingDetailsPage() {
   const { projectId, meetingId } = useParams<{ projectId: string; meetingId: string }>()
   const navigate = useNavigate()
-  const [meeting, setMeeting] = useState<any>(null)
+  const [meeting, setMeeting] = useState<Meeting | null>(null)
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [transcriptions, setTranscriptions] = useState<any[]>([])
+  const [transcriptions, setTranscriptions] = useState<Transcription[]>([])
   const [hasMoreTranscriptions, setHasMoreTranscriptions] = useState(true)
   const [isLoadingTranscriptions, setIsLoadingTranscriptions] = useState(false)
   const [activeContentTab, setActiveContentTab] = useState<ContentTab>('transcription')
@@ -122,7 +128,7 @@ export function MeetingDetailsPage() {
       setIsLoadingTranscriptions(true)
 
       const response = await api.get<TranscriptionsResponse>(
-        `/api/meetings/${meetingId}/transcriptions?page=${page}&limit=50`
+        `/api/meetings/${meetingId}/transcriptions?page=${page}&limit=${TRANSCRIPTION_PAGE_LIMIT}`
       )
 
       if (response.success && response.data) {
@@ -168,7 +174,7 @@ export function MeetingDetailsPage() {
           if (!isScrollable && hasMore && !isLoadingRef.current) {
             fetchTranscriptions(newPage + 1, true)
           }
-        }, 300)
+        }, AUTO_LOAD_MORE_DELAY_MS)
       }
     } catch (err) {
       console.error('Failed to fetch transcriptions:', err)
@@ -367,23 +373,19 @@ export function MeetingDetailsPage() {
     fetchMeetingData(true)
   }, [projectId, meetingId])
 
-  // Polling for incomplete transcriptions
+  // Determine if we should poll for meeting updates
+  const isProcessing = meeting?.transcriptionStatus === 'pending' ||
+                       meeting?.transcriptionStatus === 'processing'
+
+  // Poll for meeting updates when processing
+  usePolling({
+    enabled: isProcessing,
+    onPoll: () => fetchMeetingData(false),
+  })
+
+  // Fetch transcriptions when completed - only once
   useEffect(() => {
-    if (!meeting) return
-
-    const isProcessing = meeting.transcriptionStatus === 'pending' ||
-                        meeting.transcriptionStatus === 'processing'
-
-    if (isProcessing) {
-      const interval = setInterval(() => {
-        fetchMeetingData(false)
-      }, 3000)
-
-      return () => clearInterval(interval)
-    }
-
-    // Fetch transcriptions when completed - only once
-    if (meeting.transcriptionStatus === 'completed' && !initialLoadCompleteRef.current && transcriptions.length === 0) {
+    if (meeting?.transcriptionStatus === 'completed' && !initialLoadCompleteRef.current && transcriptions.length === 0) {
       fetchTranscriptions(1, false)
     }
   }, [meeting?.transcriptionStatus, transcriptions.length, fetchTranscriptions])
@@ -411,8 +413,8 @@ export function MeetingDetailsPage() {
       const clientHeight = scrollContainer.clientHeight
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight
 
-      // Load more when user scrolls to bottom (within 200px)
-      if (distanceFromBottom < 200) {
+      // Load more when user scrolls to bottom (within threshold)
+      if (distanceFromBottom < INFINITE_SCROLL_THRESHOLD_PX) {
         loadMoreTranscriptions()
       }
     }
@@ -622,7 +624,7 @@ export function MeetingDetailsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {transcriptions.map((segment: any) => {
+                  {transcriptions.map((segment) => {
                     const isEditing = editingTranscriptionId === segment._id
                     return (
                       <div
@@ -789,18 +791,19 @@ export function MeetingDetailsPage() {
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown
                     components={{
-                      code: ({ node, inline, className, children, ...props }: any) => {
+                      code: (props) => {
+                        const { inline, className, children, ...rest } = props as any
                         return inline ? (
-                          <code className="bg-muted text-foreground px-1.5 py-0.5 rounded text-sm" {...props}>
+                          <code className="bg-muted text-foreground px-1.5 py-0.5 rounded text-sm" {...rest}>
                             {children}
                           </code>
                         ) : (
-                          <code className="block bg-muted text-foreground p-3 rounded text-sm overflow-x-auto" {...props}>
+                          <code className="block bg-muted text-foreground p-3 rounded text-sm overflow-x-auto" {...rest}>
                             {children}
                           </code>
                         )
                       },
-                      pre: ({ children, ...props }: any) => (
+                      pre: ({ children, ...props }) => (
                         <pre className="bg-muted text-foreground border border-border rounded p-3 overflow-x-auto my-4" {...props}>
                           {children}
                         </pre>

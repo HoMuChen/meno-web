@@ -14,6 +14,17 @@ import { useUsage } from '@/hooks/useUsage'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { ApiException } from '@/lib/api'
 import { generateMeetingTitle } from '@/lib/formatters'
+import {
+  calculateAudioDuration,
+  isValidAudioFile,
+  validateFileSize,
+} from '@/lib/meeting-utils'
+import {
+  DEFAULT_MAX_FILE_SIZE_BYTES,
+  UPLOAD_PROGRESS_INTERVAL_MS,
+  UPLOAD_PROGRESS_INCREMENT,
+  UPLOAD_PROGRESS_MAX,
+} from '@/config/constants'
 import type { CreateMeetingResponse } from '@/types/meeting'
 import type { CurrentMonthUsage } from '@/types/usage'
 
@@ -54,44 +65,22 @@ export function NewMeetingDialog({
   })
 
   // Get file size limit from user's tier (in bytes)
-  const maxFileSize = user?.tier?.limits?.maxFileSize || 100 * 1024 * 1024 // Default 100MB
-
-  // Calculate audio duration from file
-  const calculateAudioDuration = (file: File): Promise<number> => {
-    return new Promise((resolve, reject) => {
-      const audio = new Audio()
-      audio.preload = 'metadata'
-
-      audio.onloadedmetadata = () => {
-        URL.revokeObjectURL(audio.src)
-        const durationInSeconds = Math.floor(audio.duration)
-        resolve(durationInSeconds)
-      }
-
-      audio.onerror = () => {
-        URL.revokeObjectURL(audio.src)
-        reject(new Error('Failed to load audio metadata'))
-      }
-
-      audio.src = URL.createObjectURL(file)
-    })
-  }
+  const maxFileSize = user?.tier?.limits?.maxFileSize || DEFAULT_MAX_FILE_SIZE_BYTES
 
   // Handle file selection
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       // Validate file type
-      const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/m4a']
-      if (!validTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|webm|ogg|m4a|mp4)$/i)) {
+      if (!isValidAudioFile(file)) {
         setError('Invalid file type. Please select an audio file (MP3, WAV, WebM, OGG, M4A).')
         return
       }
 
       // Validate file size
-      if (file.size > maxFileSize) {
-        const maxSizeMB = Math.round(maxFileSize / (1024 * 1024))
-        setError(`File size exceeds ${maxSizeMB}MB. Please select a smaller file.`)
+      const sizeValidation = validateFileSize(file, maxFileSize)
+      if (!sizeValidation.isValid) {
+        setError(sizeValidation.error!)
         return
       }
 
@@ -209,8 +198,8 @@ export function NewMeetingDialog({
 
       // Simulate progress (since we can't track real upload progress easily with fetch)
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90))
-      }, 200)
+        setUploadProgress(prev => Math.min(prev + UPLOAD_PROGRESS_INCREMENT, UPLOAD_PROGRESS_MAX))
+      }, UPLOAD_PROGRESS_INTERVAL_MS)
 
       // Upload
       const response = await api.postFormData<CreateMeetingResponse>(

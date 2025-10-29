@@ -28,6 +28,40 @@ export class ApiException extends Error {
 }
 
 /**
+ * Build headers for API requests
+ */
+function buildHeaders(customHeaders: HeadersInit = {}, includeContentType = true): HeadersInit {
+  const token = getAuthToken()
+
+  return {
+    ...(includeContentType ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...customHeaders,
+  }
+}
+
+/**
+ * Handle API response and errors
+ */
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiException(
+      errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+      response.status,
+      errorData
+    )
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return {} as T
+  }
+
+  return await response.json()
+}
+
+/**
  * Generic fetch wrapper with error handling
  */
 async function apiRequest<T>(
@@ -36,36 +70,14 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
-  // Get auth token from centralized auth module
-  const token = getAuthToken()
-
   const config: RequestInit = {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
+    headers: buildHeaders(options.headers),
   }
 
   try {
     const response = await fetch(url, config)
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new ApiException(
-        errorData.message || `HTTP ${response.status}: ${response.statusText}`,
-        response.status,
-        errorData
-      )
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return {} as T
-    }
-
-    return await response.json()
+    return await handleResponse<T>(response)
   } catch (error) {
     if (error instanceof ApiException) {
       throw error
@@ -112,6 +124,7 @@ export const api = {
 
   /**
    * POST request with FormData (for file uploads)
+   * Don't set Content-Type header - browser will set it with boundary
    */
   postFormData: async <T>(
     endpoint: string,
@@ -119,36 +132,17 @@ export const api = {
     options?: RequestInit
   ): Promise<T> => {
     const url = `${API_BASE_URL}${endpoint}`
-    const token = getAuthToken()
 
     const config: RequestInit = {
       ...options,
       method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options?.headers,
-        // Don't set Content-Type for FormData - browser will set it with boundary
-      },
+      headers: buildHeaders(options?.headers, false), // Don't include Content-Type for FormData
       body: formData,
     }
 
     try {
       const response = await fetch(url, config)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new ApiException(
-          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
-          response.status,
-          errorData
-        )
-      }
-
-      if (response.status === 204) {
-        return {} as T
-      }
-
-      return await response.json()
+      return await handleResponse<T>(response)
     } catch (error) {
       if (error instanceof ApiException) {
         throw error

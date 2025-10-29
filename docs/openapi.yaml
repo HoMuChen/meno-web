@@ -206,6 +206,52 @@ components:
         updatedAt:
           type: string
           format: date-time
+    TierConfig:
+      type: object
+      required:
+        - name
+        - displayName
+        - limits
+      properties:
+        _id:
+          type: string
+          description: Auto-generated tier ID
+        name:
+          type: string
+          enum:
+            - free
+            - plus
+            - pro
+          description: Unique tier identifier
+        displayName:
+          type: string
+          description: Human-readable tier name
+        limits:
+          type: object
+          properties:
+            monthlyDuration:
+              type: number
+              description: Monthly audio duration limit in seconds (-1 for unlimited)
+            maxFileSize:
+              type: number
+              description: Maximum file size in bytes
+        features:
+          type: array
+          items:
+            type: string
+          description: Array of feature flags enabled for this tier
+        price:
+          type: number
+          description: Monthly price in cents (0 for free tier)
+        isActive:
+          type: boolean
+          description: Whether this tier is currently available
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     Transcription:
       type: object
       required:
@@ -234,11 +280,6 @@ components:
           type: string
           description: Transcribed text segment
           maxLength: 5000
-        confidence:
-          type: number
-          description: Transcription confidence score (0-1)
-          minimum: 0
-          maximum: 1
         isEdited:
           type: boolean
           description: Whether the transcription was manually edited
@@ -284,6 +325,29 @@ components:
             - inactive
             - suspended
           description: User account status
+        tier:
+          type: string
+          description: Reference to user's subscription tier
+        tierStartDate:
+          type: string
+          format: date-time
+          description: When the current tier started
+        currentMonthUsage:
+          type: object
+          properties:
+            duration:
+              type: number
+              description: Cached total duration used this month (seconds)
+            lastReset:
+              type: string
+              format: date-time
+              description: When the usage cache was last reset
+            month:
+              type: number
+              description: Month this cache is for (1-12)
+            year:
+              type: number
+              description: Year this cache is for
         createdAt:
           type: string
           format: date-time
@@ -656,6 +720,109 @@ paths:
                       status:
                         type: string
                         example: disconnected
+  /api/projects/{projectId}/transcriptions/search-all:
+    get:
+      summary: Search transcriptions across all meetings in a project
+      description: Semantic search across all meetings in a project using AI embeddings
+      tags:
+        - Transcriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+          description: Project ID
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query (finds semantically similar content across all meetings)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Results per page
+        - in: query
+          name: scoreThreshold
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+            default: 0.7
+          description: Minimum similarity score (0-1)
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+          description: Filter meetings created after this date (ISO 8601)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+          description: Filter meetings created before this date (ISO 8601)
+        - in: query
+          name: speaker
+          schema:
+            type: string
+          description: Filter by speaker name
+        - in: query
+          name: groupByMeeting
+          schema:
+            type: boolean
+            default: true
+          description: Group results by meeting (true) or return flat list (false)
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        description: Search results grouped by meeting or flat list
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          total:
+                            type: integer
+                      searchType:
+                        type: string
+                        example: semantic_cross_meeting
+                      meetingsSearched:
+                        type: integer
+        '400':
+          description: Invalid search query or embedding service not configured
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not authorized to access this project
+        '404':
+          description: Project not found
   /api/projects/{projectId}/meetings:
     post:
       summary: Create a new meeting with audio file
@@ -1253,6 +1420,81 @@ paths:
           description: Unauthorized
         '404':
           description: Meeting not found
+  /api/meetings/{meetingId}/transcriptions/semantic-search:
+    get:
+      summary: Semantic search transcriptions
+      description: Vector-based semantic search using AI embeddings for better conceptual matching
+      tags:
+        - Transcriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: meetingId
+          required: true
+          schema:
+            type: string
+          description: Meeting ID
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query (finds semantically similar content)
+        - in: query
+          name: scoreThreshold
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+            default: 0.7
+          description: Minimum similarity score (0-1)
+        - in: query
+          name: speaker
+          schema:
+            type: string
+          description: Filter by speaker name
+      responses:
+        '200':
+          description: Semantic search results retrieved successfully
+        '400':
+          description: Invalid search query or embedding service not configured
+        '401':
+          description: Unauthorized
+        '404':
+          description: Meeting not found
+  /api/meetings/{meetingId}/transcriptions/hybrid-search:
+    get:
+      summary: Hybrid search transcriptions
+      description: Combines semantic and keyword search for comprehensive results
+      tags:
+        - Transcriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: meetingId
+          required: true
+          schema:
+            type: string
+          description: Meeting ID
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query
+      responses:
+        '200':
+          description: Hybrid search results retrieved successfully
+        '400':
+          description: Invalid search query
+        '401':
+          description: Unauthorized
+        '404':
+          description: Meeting not found
   /api/meetings/{meetingId}/transcriptions/speaker/{speaker}:
     get:
       summary: Get transcriptions by speaker
@@ -1393,6 +1635,33 @@ paths:
           description: Unauthorized
         '404':
           description: Transcription not found
+    delete:
+      summary: Delete transcription
+      description: Delete a specific transcription segment
+      tags:
+        - Transcriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: meetingId
+          required: true
+          schema:
+            type: string
+          description: Meeting ID
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Transcription ID
+      responses:
+        '200':
+          description: Transcription deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Transcription not found
   /api/users:
     get:
       summary: Get all users
@@ -1486,6 +1755,33 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/users/me:
+    get:
+      summary: Get current authenticated user's profile
+      description: Returns the profile of the currently authenticated user
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - authentication required
           content:
             application/json:
               schema:

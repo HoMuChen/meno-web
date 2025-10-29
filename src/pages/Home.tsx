@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,8 +17,10 @@ import { useProjectsContext } from '@/contexts/ProjectsContext'
 import { useMeetings } from '@/hooks/useMeetings'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDuration, formatDateTime } from '@/lib/formatters'
+import { extractProjectId } from '@/lib/meeting-utils'
 import api from '@/lib/api'
 import type { MeetingResponse, Meeting } from '@/types/meeting'
+import { usePolling } from '@/hooks/usePolling'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -32,7 +34,6 @@ export function HomePage() {
   const [isNewMeetingDialogOpen, setIsNewMeetingDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [localMeetings, setLocalMeetings] = useState<Meeting[]>([])
-  const pollingIntervalRef = useRef<number | null>(null)
 
   const handleNewMeetingClick = () => {
     setIsProjectModalOpen(true)
@@ -50,11 +51,6 @@ export function HomePage() {
     refetchMeetings()
   }
 
-  // Helper to extract projectId (handle both string and object)
-  const getProjectId = (projectId: string | any): string => {
-    return typeof projectId === 'string' ? projectId : projectId._id
-  }
-
   // Sync localMeetings with meetings from hook
   useEffect(() => {
     setLocalMeetings(meetings)
@@ -63,7 +59,7 @@ export function HomePage() {
   // Fetch individual meeting data
   const fetchSingleMeeting = useCallback(async (meeting: Meeting) => {
     try {
-      const projectId = getProjectId(meeting.projectId)
+      const projectId = extractProjectId(meeting.projectId)
 
       const response = await api.get<MeetingResponse>(
         `/api/projects/${projectId}/meetings/${meeting._id}`
@@ -80,40 +76,22 @@ export function HomePage() {
     } catch (err) {
       console.error(`Failed to fetch meeting ${meeting._id}:`, err)
     }
-  }, [getProjectId])
+  }, [])
 
-  // Poll for incomplete meetings every 3 seconds
-  useEffect(() => {
-    const incompleteMeetings = localMeetings.filter(
-      meeting => meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing'
-    )
+  // Identify incomplete meetings that need polling
+  const incompleteMeetings = localMeetings.filter(
+    meeting => meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing'
+  )
 
-    if (incompleteMeetings.length > 0) {
-      // Set up polling interval if not already set
-      if (!pollingIntervalRef.current) {
-        pollingIntervalRef.current = setInterval(() => {
-          // Poll each incomplete meeting individually
-          incompleteMeetings.forEach(meeting => {
-            fetchSingleMeeting(meeting)
-          })
-        }, 3000) // Poll every 3 seconds
-      }
-    } else {
-      // Clear polling interval if all meetings are complete
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
-    }
-  }, [localMeetings, fetchSingleMeeting])
+  // Poll for incomplete meetings using reusable hook
+  usePolling({
+    enabled: incompleteMeetings.length > 0,
+    onPoll: () => {
+      incompleteMeetings.forEach(meeting => {
+        fetchSingleMeeting(meeting)
+      })
+    },
+  })
 
   return (
     <div className="container mx-auto px-4 py-6 sm:py-8">
@@ -153,7 +131,7 @@ export function HomePage() {
               <Card
                 key={meeting._id}
                 className="cursor-pointer transition-all hover:border-primary/50"
-                onClick={() => navigate(`/projects/${getProjectId(meeting.projectId)}/meetings/${meeting._id}`)}
+                onClick={() => navigate(`/projects/${extractProjectId(meeting.projectId)}/meetings/${meeting._id}`)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
