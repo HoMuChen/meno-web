@@ -173,4 +173,30 @@ export async function getCurrentMonthUsage() {
   return api.get(`/api/users/me/usage?year=${year}&month=${month}`)
 }
 
+/**
+ * Update a transcription segment
+ */
+export async function updateTranscription(
+  meetingId: string,
+  transcriptionId: string,
+  data: { text: string }
+) {
+  return api.patch(
+    `/api/meetings/${meetingId}/transcriptions/${transcriptionId}`,
+    data
+  )
+}
+
+/**
+ * Delete a transcription segment
+ */
+export async function deleteTranscription(
+  meetingId: string,
+  transcriptionId: string
+) {
+  return api.delete(
+    `/api/meetings/${meetingId}/transcriptions/${transcriptionId}`
+  )
+}
+
 export default api

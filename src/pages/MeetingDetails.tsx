@@ -26,10 +26,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
-import api, { ApiException } from '@/lib/api'
+import api, { ApiException, updateTranscription, deleteTranscription } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
 import type { MeetingResponse, TranscriptionsResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
+import { Textarea } from '@/components/ui/textarea'
 
 type ContentTab = 'transcription' | 'summary' | 'events'
 
@@ -55,6 +56,13 @@ export function MeetingDetailsPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Transcription edit/delete state
+  const [editingTranscriptionId, setEditingTranscriptionId] = useState<string | null>(null)
+  const [editedText, setEditedText] = useState<string>('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [deletingTranscriptionId, setDeletingTranscriptionId] = useState<string | null>(null)
+  const [showDeleteTranscriptionDialog, setShowDeleteTranscriptionDialog] = useState(false)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -268,6 +276,90 @@ export function MeetingDetailsPage() {
       setIsDeleting(false)
       setShowDeleteDialog(false)
     }
+  }
+
+  // Handle edit transcription
+  const handleEditTranscription = (transcriptionId: string, currentText: string) => {
+    setEditingTranscriptionId(transcriptionId)
+    setEditedText(currentText)
+  }
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingTranscriptionId(null)
+    setEditedText('')
+  }
+
+  // Handle save edit
+  const handleSaveEdit = async (transcriptionId: string) => {
+    if (!meetingId || !editedText.trim()) return
+
+    try {
+      setIsSavingEdit(true)
+
+      // Optimistic update
+      setTranscriptions(prev =>
+        prev.map(t =>
+          t._id === transcriptionId
+            ? { ...t, text: editedText, isEdited: true }
+            : t
+        )
+      )
+
+      // API call
+      await updateTranscription(meetingId, transcriptionId, { text: editedText })
+
+      // Reset edit state
+      setEditingTranscriptionId(null)
+      setEditedText('')
+    } catch (err) {
+      // Revert optimistic update on error
+      fetchTranscriptions(1, false)
+
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to update transcription')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  // Handle delete transcription
+  const handleDeleteTranscription = async () => {
+    if (!meetingId || !deletingTranscriptionId) return
+
+    try {
+      // Optimistic update
+      setTranscriptions(prev =>
+        prev.filter(t => t._id !== deletingTranscriptionId)
+      )
+
+      // API call
+      await deleteTranscription(meetingId, deletingTranscriptionId)
+
+      // Close dialog
+      setShowDeleteTranscriptionDialog(false)
+      setDeletingTranscriptionId(null)
+    } catch (err) {
+      // Revert optimistic update on error
+      fetchTranscriptions(1, false)
+
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to delete transcription')
+      } else {
+        setError('Unable to connect to the server')
+      }
+      setShowDeleteTranscriptionDialog(false)
+      setDeletingTranscriptionId(null)
+    }
+  }
+
+  // Handle show delete confirmation
+  const handleShowDeleteTranscription = (transcriptionId: string) => {
+    setDeletingTranscriptionId(transcriptionId)
+    setShowDeleteTranscriptionDialog(true)
   }
 
   // Initial data fetch
@@ -531,22 +623,107 @@ export function MeetingDetailsPage() {
               <CardContent>
                 <div className="space-y-3">
                   {transcriptions.map((segment: any) => {
+                    const isEditing = editingTranscriptionId === segment._id
                     return (
                       <div
                         key={segment._id}
                         className="rounded-lg border bg-muted/30 p-3"
                       >
-                        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          {segment.speaker && (
-                            <span className="font-medium text-foreground">{segment.speaker}</span>
-                          )}
-                          {segment.startTime !== undefined && segment.endTime !== undefined && (
-                            <span className="text-muted-foreground">
-                              {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
-                            </span>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {segment.speaker && (
+                              <span className="font-medium text-foreground">{segment.speaker}</span>
+                            )}
+                            {segment.startTime !== undefined && segment.endTime !== undefined && (
+                              <span className="text-muted-foreground">
+                                {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
+                              </span>
+                            )}
+                            {segment.isEdited && (
+                              <span className="text-xs text-muted-foreground italic">
+                                (edited)
+                              </span>
+                            )}
+                          </div>
+                          {!isEditing && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => handleEditTranscription(segment._id, segment.text)}
+                                aria-label="Edit transcription"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                  <path d="m15 5 4 4" />
+                                </svg>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleShowDeleteTranscription(segment._id)}
+                                aria-label="Delete transcription"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                              </Button>
+                            </div>
                           )}
                         </div>
-                        <p className="text-sm leading-relaxed">{segment.text}</p>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editedText}
+                              onChange={(e) => setEditedText(e.target.value)}
+                              className="min-h-[100px] text-sm"
+                              placeholder="Edit transcription text..."
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveEdit(segment._id)}
+                                disabled={isSavingEdit || !editedText.trim()}
+                              >
+                                {isSavingEdit ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCancelEdit}
+                                disabled={isSavingEdit}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-relaxed">{segment.text}</p>
+                        )}
                       </div>
                     )
                   })}
@@ -744,7 +921,7 @@ export function MeetingDetailsPage() {
         </Card>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Meeting Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={(open) => !open && setShowDeleteDialog(false)}>
         <DialogContent>
           <DialogHeader>
@@ -767,6 +944,35 @@ export function MeetingDetailsPage() {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Transcription Confirmation Dialog */}
+      <Dialog open={showDeleteTranscriptionDialog} onOpenChange={(open) => !open && setShowDeleteTranscriptionDialog(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Transcription</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this transcription segment? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteTranscriptionDialog(false)
+                setDeletingTranscriptionId(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTranscription}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
