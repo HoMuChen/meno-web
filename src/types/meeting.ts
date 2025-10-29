@@ -94,3 +94,35 @@ export interface HybridSearchResponse {
     }
   }
 }
+
+// Cross-meeting search types (project-level search)
+export interface CrossMeetingTranscription extends Transcription {
+  vectorScore?: number
+  textScore?: number
+  combinedScore?: number
+}
+
+export interface CrossMeetingSearchResult {
+  meetingId: string
+  meetingTitle: string
+  meetingDate: string
+  matchCount: number
+  topScore: number
+  transcriptions: CrossMeetingTranscription[]
+}
+
+export interface CrossMeetingSearchResponse {
+  success: boolean
+  message: string
+  data: {
+    results: CrossMeetingSearchResult[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+    }
+    searchType: string
+    strategy?: string
+    meetingsSearched: number
+  }
+}

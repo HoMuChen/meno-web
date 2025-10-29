@@ -213,4 +213,45 @@ export async function searchTranscriptionsHybrid(
   )
 }
 
+/**
+ * Search transcriptions across all meetings in a project (cross-meeting search)
+ */
+export async function searchProjectTranscriptions(
+  projectId: string,
+  query: string,
+  options?: {
+    page?: number
+    limit?: number
+    scoreThreshold?: number
+    from?: string
+    to?: string
+    speaker?: string
+    groupByMeeting?: boolean
+  }
+) {
+  const params = new URLSearchParams({
+    q: query,
+    page: (options?.page || 1).toString(),
+    limit: (options?.limit || 20).toString(),
+    groupByMeeting: (options?.groupByMeeting !== false).toString(), // Default to true
+  })
+
+  if (options?.scoreThreshold !== undefined) {
+    params.append('scoreThreshold', options.scoreThreshold.toString())
+  }
+  if (options?.from) {
+    params.append('from', options.from)
+  }
+  if (options?.to) {
+    params.append('to', options.to)
+  }
+  if (options?.speaker) {
+    params.append('speaker', options.speaker)
+  }
+
+  return api.get(
+    `/api/projects/${projectId}/transcriptions/search-all?${params.toString()}`
+  )
+}
+
 export default api

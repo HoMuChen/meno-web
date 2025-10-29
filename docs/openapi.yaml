@@ -29,6 +29,8 @@ tags:
     description: Meeting management endpoints with audio upload and transcription
   - name: Transcriptions
     description: Transcription management endpoints for viewing and editing meeting transcripts
+  - name: People
+    description: Person management endpoints
 components:
   securitySchemes:
     bearerAuth:
@@ -173,6 +175,68 @@ components:
               type: string
             originalName:
               type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Person:
+      type: object
+      required:
+        - name
+        - userId
+      properties:
+        _id:
+          type: string
+          description: Auto-generated person ID
+        name:
+          type: string
+          description: Person's full name
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          description: Person's email (optional)
+        phone:
+          type: string
+          description: Person's phone number (optional)
+          maxLength: 20
+        company:
+          type: string
+          description: Company or organization
+          maxLength: 100
+        socialMedia:
+          type: object
+          properties:
+            linkedin:
+              type: string
+              format: uri
+              description: LinkedIn profile URL
+            twitter:
+              type: string
+              format: uri
+              description: Twitter profile URL
+            facebook:
+              type: string
+              format: uri
+              description: Facebook profile URL
+            instagram:
+              type: string
+              format: uri
+              description: Instagram profile URL
+            github:
+              type: string
+              format: uri
+              description: GitHub profile URL
+        notes:
+          type: string
+          description: Additional notes about the person
+          maxLength: 1000
+        userId:
+          type: string
+          description: Owner user ID
         createdAt:
           type: string
           format: date-time
@@ -1168,6 +1232,212 @@ paths:
           description: Unauthorized
         '404':
           description: Meeting not found
+  /api/people:
+    post:
+      summary: Create a new person
+      description: Create a new person (client, member, friend, speaker)
+      tags:
+        - People
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                phone:
+                  type: string
+                  maxLength: 20
+                  example: '+1234567890'
+                company:
+                  type: string
+                  maxLength: 100
+                  example: Acme Corporation
+                socialMedia:
+                  type: object
+                  properties:
+                    linkedin:
+                      type: string
+                      format: uri
+                      example: https://linkedin.com/in/johndoe
+                    twitter:
+                      type: string
+                      format: uri
+                      example: https://twitter.com/johndoe
+                    facebook:
+                      type: string
+                      format: uri
+                      example: https://facebook.com/johndoe
+                    instagram:
+                      type: string
+                      format: uri
+                      example: https://instagram.com/johndoe
+                    github:
+                      type: string
+                      format: uri
+                      example: https://github.com/johndoe
+                notes:
+                  type: string
+                  maxLength: 1000
+                  example: Important client for Q4 project
+      responses:
+        '201':
+          description: Person created successfully
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+    get:
+      summary: Get user's people
+      description: Retrieve paginated list of people for authenticated user
+      tags:
+        - People
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            default: name
+          description: Sort field (prefix with - for descending)
+      responses:
+        '200':
+          description: People retrieved successfully
+        '401':
+          description: Unauthorized
+  /api/people/{id}:
+    get:
+      summary: Get person by ID
+      description: Retrieve a specific person by their ID
+      tags:
+        - People
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Person ID
+      responses:
+        '200':
+          description: Person retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Person not found
+    put:
+      summary: Update person
+      description: Update person information
+      tags:
+        - People
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Person ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  maxLength: 20
+                company:
+                  type: string
+                  maxLength: 100
+                socialMedia:
+                  type: object
+                  properties:
+                    linkedin:
+                      type: string
+                      format: uri
+                    twitter:
+                      type: string
+                      format: uri
+                    facebook:
+                      type: string
+                      format: uri
+                    instagram:
+                      type: string
+                      format: uri
+                    github:
+                      type: string
+                      format: uri
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Person updated successfully
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '404':
+          description: Person not found
+    delete:
+      summary: Delete person
+      description: Delete a person
+      tags:
+        - People
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Person ID
+      responses:
+        '200':
+          description: Person deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Person not found
   /api/projects:
     post:
       summary: Create a new project
@@ -1389,10 +1659,12 @@ paths:
           description: Unauthorized
         '404':
           description: Meeting not found
-  /api/meetings/{meetingId}/transcriptions/search:
+  /api/meetings/{meetingId}/transcriptions/hybrid-search:
     get:
-      summary: Search transcriptions by text
-      description: Search transcription text content with keyword
+      summary: Hybrid search transcriptions
+      description: >-
+        Two-stage retrieval combining vector search and full-text search. Stage 1 uses semantic similarity to find
+        relevant candidates, Stage 2 reranks with keyword matching for optimal results.
       tags:
         - Transcriptions
       security:
@@ -1410,38 +1682,7 @@ paths:
           schema:
             type: string
             maxLength: 200
-          description: Search query keyword
-      responses:
-        '200':
-          description: Search results retrieved successfully
-        '400':
-          description: Invalid search query
-        '401':
-          description: Unauthorized
-        '404':
-          description: Meeting not found
-  /api/meetings/{meetingId}/transcriptions/semantic-search:
-    get:
-      summary: Semantic search transcriptions
-      description: Vector-based semantic search using AI embeddings for better conceptual matching
-      tags:
-        - Transcriptions
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: meetingId
-          required: true
-          schema:
-            type: string
-          description: Meeting ID
-        - in: query
-          name: q
-          required: true
-          schema:
-            type: string
-            maxLength: 200
-          description: Search query (finds semantically similar content)
+          description: Search query (supports multi-word and multi-language queries)
         - in: query
           name: scoreThreshold
           schema:
@@ -1449,7 +1690,7 @@ paths:
             minimum: 0
             maximum: 1
             default: 0.7
-          description: Minimum similarity score (0-1)
+          description: Minimum combined similarity score (0-1)
         - in: query
           name: speaker
           schema:
@@ -1457,38 +1698,7 @@ paths:
           description: Filter by speaker name
       responses:
         '200':
-          description: Semantic search results retrieved successfully
-        '400':
-          description: Invalid search query or embedding service not configured
-        '401':
-          description: Unauthorized
-        '404':
-          description: Meeting not found
-  /api/meetings/{meetingId}/transcriptions/hybrid-search:
-    get:
-      summary: Hybrid search transcriptions
-      description: Combines semantic and keyword search for comprehensive results
-      tags:
-        - Transcriptions
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: meetingId
-          required: true
-          schema:
-            type: string
-          description: Meeting ID
-        - in: query
-          name: q
-          required: true
-          schema:
-            type: string
-            maxLength: 200
-          description: Search query
-      responses:
-        '200':
-          description: Hybrid search results retrieved successfully
+          description: Hybrid search results retrieved successfully with combined scores
         '400':
           description: Invalid search query
         '401':
