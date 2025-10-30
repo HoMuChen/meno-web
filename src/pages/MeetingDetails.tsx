@@ -36,6 +36,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -92,13 +93,23 @@ export function MeetingDetailsPage() {
   } | null>(null)
 
   // Speaker assignment state
-  const { people } = usePeopleContext()
+  const { people, createPerson } = usePeopleContext()
   const [isAssigning, setIsAssigning] = useState(false)
   const [showAssignConfirmDialog, setShowAssignConfirmDialog] = useState(false)
   const [pendingAssignment, setPendingAssignment] = useState<{
     speaker: string
     currentPersonId: string | { _id: string; name: string; company?: string } | undefined
     newPersonId: string
+  } | null>(null)
+
+  // Add person dialog state
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false)
+  const [newPersonName, setNewPersonName] = useState('')
+  const [newPersonCompany, setNewPersonCompany] = useState('')
+  const [isCreatingPerson, setIsCreatingPerson] = useState(false)
+  const [pendingSpeakerForNewPerson, setPendingSpeakerForNewPerson] = useState<{
+    speaker: string
+    currentPersonId: string | { _id: string; name: string; company?: string } | undefined
   } | null>(null)
 
   // Fetch meeting data
@@ -399,12 +410,19 @@ export function MeetingDetailsPage() {
     setShowDeleteTranscriptionDialog(true)
   }
 
-  // Handle assign speaker to person - show confirmation dialog
+  // Handle assign speaker to person - show confirmation dialog or add person dialog
   const handleAssignSpeaker = (
     speaker: string,
     currentPersonId: string | { _id: string; name: string; company?: string } | undefined,
     newPersonId: string
   ) => {
+    // Check if user wants to add a new person
+    if (newPersonId === 'add-new-person') {
+      setPendingSpeakerForNewPerson({ speaker, currentPersonId })
+      setShowAddPersonDialog(true)
+      return
+    }
+
     setPendingAssignment({ speaker, currentPersonId, newPersonId })
     setShowAssignConfirmDialog(true)
   }
@@ -442,6 +460,68 @@ export function MeetingDetailsPage() {
     } finally {
       setIsAssigning(false)
       setPendingAssignment(null)
+    }
+  }
+
+  // Handle create person and assign speaker
+  const handleCreatePersonAndAssign = async () => {
+    if (!meetingId || !pendingSpeakerForNewPerson || !newPersonName.trim()) return
+
+    setIsCreatingPerson(true)
+    try {
+      // Create new person
+      const newPerson = await createPerson({
+        name: newPersonName.trim(),
+        company: newPersonCompany.trim() || undefined,
+      })
+
+      if (!newPerson) {
+        setError('Failed to create person')
+        return
+      }
+
+      // Close add person dialog
+      setShowAddPersonDialog(false)
+      setNewPersonName('')
+      setNewPersonCompany('')
+
+      // Now assign the speaker to the newly created person
+      setIsAssigning(true)
+      let response
+
+      // Check if already assigned to a person
+      if (pendingSpeakerForNewPerson.currentPersonId && typeof pendingSpeakerForNewPerson.currentPersonId === 'object') {
+        // Reassign from current person to new person
+        response = await reassignPersonTranscriptions(
+          meetingId,
+          pendingSpeakerForNewPerson.currentPersonId._id,
+          newPerson._id
+        )
+        console.log(`Reassigned transcriptions from '${pendingSpeakerForNewPerson.currentPersonId.name}' to '${newPerson.name}' (${response.data.modifiedCount} transcriptions updated)`)
+      } else {
+        // Assign speaker to person for the first time
+        response = await assignSpeakerToPerson(
+          meetingId,
+          pendingSpeakerForNewPerson.speaker,
+          newPerson._id
+        )
+        console.log(`Assigned '${pendingSpeakerForNewPerson.speaker}' to '${newPerson.name}' (${response.data.modifiedCount} transcriptions updated)`)
+      }
+
+      if (response.success) {
+        // Refresh transcriptions to show updated personId
+        await fetchTranscriptions(1, false)
+      }
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to create person and assign speaker')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      setIsCreatingPerson(false)
+      setIsAssigning(false)
+      setPendingSpeakerForNewPerson(null)
     }
   }
 
@@ -843,7 +923,7 @@ export function MeetingDetailsPage() {
                                 onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
                                 disabled={isAssigning}
                               >
-                                <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs font-medium border-dashed gap-3">
+                                <SelectTrigger className="h-7 w-auto min-w-[120px] text-sm font-medium gap-3 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50">
                                   <SelectValue placeholder={segment.speaker}>
                                     {typeof segment.personId === 'object' && segment.personId !== null
                                       ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
@@ -853,9 +933,21 @@ export function MeetingDetailsPage() {
                                 <SelectContent>
                                   {people.map((person) => (
                                     <SelectItem key={person._id} value={person._id} className="pl-6">
-                                      {person.name}{person.company && ` - ${person.company}`}
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-block min-w-[100px]">{person.name}</span>
+                                        {person.company && (
+                                          <>
+                                            <span className="text-muted-foreground">-</span>
+                                            <span className="text-muted-foreground">{person.company}</span>
+                                          </>
+                                        )}
+                                      </div>
                                     </SelectItem>
                                   ))}
+                                  <SelectSeparator />
+                                  <SelectItem value="add-new-person" className="pl-6 text-primary font-medium">
+                                    + Add Person
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             )}
@@ -1256,6 +1348,71 @@ export function MeetingDetailsPage() {
               disabled={isAssigning}
             >
               {isAssigning ? 'Assigning...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Person Dialog */}
+      <Dialog open={showAddPersonDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowAddPersonDialog(false)
+          setNewPersonName('')
+          setNewPersonCompany('')
+          setPendingSpeakerForNewPerson(null)
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Person</DialogTitle>
+            <DialogDescription>
+              Create a new person and assign the speaker to them. All transcriptions with this speaker will be updated.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="person-name" className="text-sm font-medium">
+                Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="person-name"
+                value={newPersonName}
+                onChange={(e) => setNewPersonName(e.target.value)}
+                placeholder="Enter person name"
+                disabled={isCreatingPerson}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="person-company" className="text-sm font-medium">
+                Company
+              </label>
+              <Input
+                id="person-company"
+                value={newPersonCompany}
+                onChange={(e) => setNewPersonCompany(e.target.value)}
+                placeholder="Enter company name (optional)"
+                disabled={isCreatingPerson}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddPersonDialog(false)
+                setNewPersonName('')
+                setNewPersonCompany('')
+                setPendingSpeakerForNewPerson(null)
+              }}
+              disabled={isCreatingPerson}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreatePersonAndAssign}
+              disabled={isCreatingPerson || !newPersonName.trim()}
+            >
+              {isCreatingPerson ? 'Creating...' : 'Create & Assign'}
             </Button>
           </DialogFooter>
         </DialogContent>
