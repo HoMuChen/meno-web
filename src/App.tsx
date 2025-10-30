@@ -7,6 +7,7 @@ import { ProjectsPage } from '@/pages/Projects'
 import { ProjectDetailPage } from '@/pages/ProjectDetail'
 import { MeetingDetailsPage } from '@/pages/MeetingDetails'
 import { PeoplePage } from '@/pages/People'
+import { PersonDetailPage } from '@/pages/PersonDetail'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ProjectsProvider } from '@/contexts/ProjectsContext'
 import { PeopleProvider } from '@/contexts/PeopleContext'
@@ -172,6 +173,7 @@ function AppContent() {
                       <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                       <Route path="/projects/:projectId/meetings/:meetingId" element={<MeetingDetailsPage />} />
                       <Route path="/people" element={<PeoplePage />} />
+                      <Route path="/people/:personId" element={<PersonDetailPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </main>

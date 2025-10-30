@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -37,6 +38,7 @@ import type { Person, CreatePersonRequest, UpdatePersonRequest, PeopleResponse }
 import { SocialMediaIcons } from '@/components/SocialMediaIcons'
 
 export function PeoplePage() {
+  const navigate = useNavigate()
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -543,10 +545,14 @@ export function PeoplePage() {
                 ))
               ) : (
                 people.map((person) => (
-                  <TableRow key={person._id}>
+                  <TableRow
+                    key={person._id}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => navigate(`/people/${person._id}`)}
+                  >
                     <TableCell className="font-medium">
                       <div>
-                        <div>{person.name}</div>
+                        <div className="text-primary hover:underline">{person.name}</div>
                         {/* Show email on mobile if exists */}
                         {person.email && (
                           <div className="mt-1 text-xs text-muted-foreground md:hidden">
@@ -590,6 +596,7 @@ export function PeoplePage() {
                             size="sm"
                             className="h-8 w-8 p-0"
                             aria-label="Actions"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"

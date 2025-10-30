@@ -49,3 +49,30 @@ export interface PeopleResponse {
     }
   }
 }
+
+export interface PersonTranscription {
+  _id: string
+  meetingId: string
+  startTime: number
+  endTime: number
+  speaker: string
+  text: string
+  isEdited: boolean
+  createdAt: string
+  personId?: string
+  __v?: number
+}
+
+export interface PersonTranscriptionsResponse {
+  success: boolean
+  message: string
+  data: {
+    transcriptions: PersonTranscription[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      pages: number
+    }
+  }
+}
