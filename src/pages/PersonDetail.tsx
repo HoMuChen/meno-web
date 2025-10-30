@@ -69,7 +69,7 @@ export function PersonDetailPage() {
       setIsLoadingTranscriptions(true)
       setTranscriptionError(null)
       const response = await api.get<PersonTranscriptionsResponse>(
-        `/api/people/${personId}/transcriptions?page=${page}&limit=${limit}&sort=-createdAt`
+        `/api/people/${personId}/transcriptions?page=${page}&limit=${limit}&sort=createdAt`
       )
 
       if (response.success && response.data) {
