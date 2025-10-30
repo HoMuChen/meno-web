@@ -194,6 +194,36 @@ export async function deleteTranscription(
 }
 
 /**
+ * Batch assign speaker to person
+ * Assigns all transcriptions with a specific speaker name to a person
+ */
+export async function assignSpeakerToPerson(
+  meetingId: string,
+  speaker: string,
+  personId: string
+) {
+  return api.put(
+    `/api/meetings/${meetingId}/transcriptions/speaker/${encodeURIComponent(speaker)}/assign`,
+    { personId }
+  )
+}
+
+/**
+ * Reassign person's transcriptions to another person
+ * Reassigns all transcriptions currently assigned to a person to a different person
+ */
+export async function reassignPersonTranscriptions(
+  meetingId: string,
+  currentPersonId: string,
+  newPersonId: string
+) {
+  return api.put(
+    `/api/meetings/${meetingId}/transcriptions/people/${currentPersonId}/assign`,
+    { newPersonId }
+  )
+}
+
+/**
  * Search transcriptions using hybrid search (semantic + keyword)
  */
 export async function searchTranscriptionsHybrid(

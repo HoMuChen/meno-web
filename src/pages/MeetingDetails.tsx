@@ -26,12 +26,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
-import api, { ApiException, updateTranscription, deleteTranscription, searchTranscriptionsHybrid } from '@/lib/api'
+import api, { ApiException, updateTranscription, deleteTranscription, searchTranscriptionsHybrid, assignSpeakerToPerson, reassignPersonTranscriptions } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
 import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse, HybridSearchResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { usePeopleContext } from '@/contexts/PeopleContext'
 import { usePolling } from '@/hooks/usePolling'
 import {
   TRANSCRIPTION_PAGE_LIMIT,
@@ -82,6 +90,10 @@ export function MeetingDetailsPage() {
     components?: { semantic: number; keyword: number }
     total: number
   } | null>(null)
+
+  // Speaker assignment state
+  const { people } = usePeopleContext()
+  const [isAssigning, setIsAssigning] = useState(false)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -379,6 +391,44 @@ export function MeetingDetailsPage() {
   const handleShowDeleteTranscription = (transcriptionId: string) => {
     setDeletingTranscriptionId(transcriptionId)
     setShowDeleteTranscriptionDialog(true)
+  }
+
+  // Handle assign speaker to person
+  const handleAssignSpeaker = async (
+    speaker: string,
+    currentPersonId: string | { _id: string; name: string; company?: string } | undefined,
+    newPersonId: string
+  ) => {
+    if (!meetingId) return
+
+    setIsAssigning(true)
+    try {
+      let response
+
+      // Check if already assigned to a person
+      if (currentPersonId && typeof currentPersonId === 'object') {
+        // Reassign from current person to new person
+        response = await reassignPersonTranscriptions(meetingId, currentPersonId._id, newPersonId)
+        console.log(`Reassigned transcriptions from '${currentPersonId.name}' to new person (${response.data.modifiedCount} transcriptions updated)`)
+      } else {
+        // Assign speaker to person for the first time
+        response = await assignSpeakerToPerson(meetingId, speaker, newPersonId)
+        console.log(`Assigned '${speaker}' to person (${response.data.modifiedCount} transcriptions updated)`)
+      }
+
+      if (response.success) {
+        // Refresh transcriptions to show updated personId
+        await fetchTranscriptions(1, false)
+      }
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setError(err.message || 'Failed to assign speaker to person')
+      } else {
+        setError('Unable to connect to the server')
+      }
+    } finally {
+      setIsAssigning(false)
+    }
   }
 
   // Handle search
@@ -772,18 +822,34 @@ export function MeetingDetailsPage() {
                         className="rounded-lg border bg-muted/30 p-3"
                       >
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             {segment.speaker && (
-                              <span className="font-medium text-foreground">{segment.speaker}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">
+                                  {typeof segment.personId === 'object' && segment.personId !== null
+                                    ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
+                                    : segment.speaker}
+                                </span>
+                                <Select
+                                  onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
+                                  disabled={isAssigning}
+                                >
+                                  <SelectTrigger className="h-6 w-[160px] text-xs">
+                                    <SelectValue placeholder="Assign to person..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {people.map((person) => (
+                                      <SelectItem key={person._id} value={person._id} className="pl-6">
+                                        {person.name}{person.company && ` - ${person.company}`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             )}
                             {segment.startTime !== undefined && segment.endTime !== undefined && (
                               <span className="text-muted-foreground">
                                 {formatTimeFromMs(segment.startTime)} - {formatTimeFromMs(segment.endTime)}
-                              </span>
-                            )}
-                            {segment.isEdited && (
-                              <span className="text-xs text-muted-foreground italic">
-                                (edited)
                               </span>
                             )}
                           </div>
