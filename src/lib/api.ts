@@ -28,6 +28,16 @@ export class ApiException extends Error {
 }
 
 /**
+ * Response from speaker/person assignment operations
+ */
+export interface AssignmentResponse {
+  success: boolean
+  data: {
+    modifiedCount: number
+  }
+}
+
+/**
  * Build headers for API requests
  */
 function buildHeaders(customHeaders: HeadersInit = {}, includeContentType = true): HeadersInit {
@@ -201,8 +211,8 @@ export async function assignSpeakerToPerson(
   meetingId: string,
   speaker: string,
   personId: string
-) {
-  return api.put(
+): Promise<AssignmentResponse> {
+  return api.put<AssignmentResponse>(
     `/api/meetings/${meetingId}/transcriptions/speaker/${encodeURIComponent(speaker)}/assign`,
     { personId }
   )
@@ -216,8 +226,8 @@ export async function reassignPersonTranscriptions(
   meetingId: string,
   currentPersonId: string,
   newPersonId: string
-) {
-  return api.put(
+): Promise<AssignmentResponse> {
+  return api.put<AssignmentResponse>(
     `/api/meetings/${meetingId}/transcriptions/people/${currentPersonId}/assign`,
     { newPersonId }
   )
