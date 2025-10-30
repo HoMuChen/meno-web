@@ -500,72 +500,167 @@ export function PeoplePage() {
         </Card>
       )}
 
-      {/* People Table */}
+      {/* People List - Card view on mobile, Table on desktop */}
       {!isLoading && !error && people.length > 0 && (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Email</TableHead>
-                <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                <TableHead className="hidden lg:table-cell">Company</TableHead>
-                <TableHead className="hidden xl:table-cell">Social</TableHead>
-                <TableHead className="hidden sm:table-cell">Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                // Loading skeleton rows
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="h-4 w-36 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      <div className="h-4 w-20 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="ml-auto h-8 w-8 animate-pulse rounded bg-muted" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                people.map((person) => (
+        <>
+          {/* Mobile Card View */}
+          <div className="grid gap-3 sm:hidden">
+            {people.map((person) => (
+              <Card
+                key={person._id}
+                className="cursor-pointer transition-all hover:shadow-md active:scale-[0.98]"
+                onClick={() => navigate(`/people/${person._id}`)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-primary truncate mb-2">
+                        {person.name}
+                      </h3>
+                      {person.email && (
+                        <div className="flex items-start gap-2 mb-1.5">
+                          <span className="text-xs font-medium text-muted-foreground/70 min-w-[60px]">Email:</span>
+                          <p className="text-sm text-muted-foreground truncate flex-1">
+                            {person.email}
+                          </p>
+                        </div>
+                      )}
+                      {person.phone && (
+                        <div className="flex items-start gap-2 mb-1.5">
+                          <span className="text-xs font-medium text-muted-foreground/70 min-w-[60px]">Phone:</span>
+                          <p className="text-sm text-muted-foreground flex-1">
+                            {person.phone}
+                          </p>
+                        </div>
+                      )}
+                      {person.company && (
+                        <div className="flex items-start gap-2 mb-2">
+                          <span className="text-xs font-medium text-muted-foreground/70 min-w-[60px]">Company:</span>
+                          <p className="text-sm text-muted-foreground flex-1">
+                            {person.company}
+                          </p>
+                        </div>
+                      )}
+                      {person.socialMedia && Object.values(person.socialMedia).some(value => value) && (
+                        <div className="flex items-start gap-2 mt-2">
+                          <span className="text-xs font-medium text-muted-foreground/70 min-w-[60px]">Social:</span>
+                          <SocialMediaIcons
+                            socialMedia={person.socialMedia}
+                            size={16}
+                          />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Created {formatDate(person.createdAt)}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          aria-label="Actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="1" />
+                            <circle cx="12" cy="5" r="1" />
+                            <circle cx="12" cy="19" r="1" />
+                          </svg>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenEditDialog(person)
+                          }}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-2"
+                          >
+                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            <path d="m15 5 4 4" />
+                          </svg>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPersonToDelete(person)
+                          }}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-2"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="hidden md:table-cell">Email</TableHead>
+                  <TableHead className="hidden lg:table-cell">Phone</TableHead>
+                  <TableHead className="hidden lg:table-cell">Company</TableHead>
+                  <TableHead className="hidden xl:table-cell">Social</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {people.map((person) => (
                   <TableRow
                     key={person._id}
                     className="cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => navigate(`/people/${person._id}`)}
                   >
                     <TableCell className="font-medium">
-                      <div>
-                        <div className="text-primary hover:underline">{person.name}</div>
-                        {/* Show email on mobile if exists */}
-                        {person.email && (
-                          <div className="mt-1 text-xs text-muted-foreground md:hidden">
-                            {person.email}
-                          </div>
-                        )}
-                        {/* Show social media icons on mobile */}
-                        <SocialMediaIcons
-                          socialMedia={person.socialMedia}
-                          size={14}
-                          className="mt-2 xl:hidden"
-                        />
-                      </div>
+                      <div className="text-primary hover:underline">{person.name}</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {person.email || '-'}
@@ -585,7 +680,7 @@ export function PeoplePage() {
                         )
                       ) || <span className="text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {formatDate(person.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -618,7 +713,10 @@ export function PeoplePage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             className="cursor-pointer"
-                            onClick={() => handleOpenEditDialog(person)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenEditDialog(person)
+                            }}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -639,7 +737,10 @@ export function PeoplePage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                            onClick={() => setPersonToDelete(person)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPersonToDelete(person)
+                            }}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -663,11 +764,11 @@ export function PeoplePage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {/* Edit Person Dialog */}
