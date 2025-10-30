@@ -268,21 +268,55 @@ export function PersonDetailPage() {
           ) : (
             <div className="space-y-4">
               {/* Transcription List */}
-              {transcriptions.map((transcription) => (
-                <div
-                  key={transcription._id}
-                  className="rounded-lg border bg-card p-4 hover:bg-accent/5 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4">
+              {transcriptions.map((transcription) => {
+                const meeting = typeof transcription.meetingId === 'object' ? transcription.meetingId : null
+
+                return (
+                  <div
+                    key={transcription._id}
+                    className="rounded-lg border bg-card p-4 hover:bg-accent/5 transition-colors"
+                  >
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium">
-                          {formatTimeFromMs(transcription.startTime)}
-                        </span>
-                        <span>-</span>
-                        <span className="font-medium">
-                          {formatTimeFromMs(transcription.endTime)}
-                        </span>
+                      {/* Time Range and Meeting Title */}
+                      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-muted-foreground">
+                            {formatTimeFromMs(transcription.startTime)}
+                          </span>
+                          <span className="text-muted-foreground">-</span>
+                          <span className="font-medium text-muted-foreground">
+                            {formatTimeFromMs(transcription.endTime)}
+                          </span>
+                        </div>
+                        {meeting && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground hidden sm:inline">·</span>
+                            <button
+                              onClick={() => navigate(`/projects/${meeting.projectId}/meetings/${meeting._id}`)}
+                              className="flex items-center gap-1.5 group min-w-0"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="text-muted-foreground shrink-0"
+                              >
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" x2="12" y1="19" y2="22" />
+                              </svg>
+                              <span className="text-primary group-hover:underline truncate">
+                                {meeting.title}
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm leading-relaxed">{transcription.text}</p>
                       <p className="text-xs text-muted-foreground">
@@ -290,8 +324,8 @@ export function PersonDetailPage() {
                       </p>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {/* Pagination */}
               {totalPages > 1 && (

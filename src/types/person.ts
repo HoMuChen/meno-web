@@ -52,14 +52,22 @@ export interface PeopleResponse {
 
 export interface PersonTranscription {
   _id: string
-  meetingId: string
+  meetingId: string | {
+    _id: string
+    title: string
+    projectId: string
+  }
   startTime: number
   endTime: number
   speaker: string
   text: string
   isEdited: boolean
   createdAt: string
-  personId?: string
+  personId?: string | {
+    _id: string
+    name: string
+    company?: string
+  }
   __v?: number
 }
 
