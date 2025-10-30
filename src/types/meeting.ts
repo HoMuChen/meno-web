@@ -53,6 +53,8 @@ export interface Transcription {
   startTime: number
   endTime: number
   speaker: string
+  personId?: string
+  personName?: string
   text: string
   confidence: number
   isEdited: boolean
