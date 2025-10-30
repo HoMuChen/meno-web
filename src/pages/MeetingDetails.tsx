@@ -94,6 +94,12 @@ export function MeetingDetailsPage() {
   // Speaker assignment state
   const { people } = usePeopleContext()
   const [isAssigning, setIsAssigning] = useState(false)
+  const [showAssignConfirmDialog, setShowAssignConfirmDialog] = useState(false)
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    speaker: string
+    currentPersonId: string | { _id: string; name: string; company?: string } | undefined
+    newPersonId: string
+  } | null>(null)
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -393,27 +399,34 @@ export function MeetingDetailsPage() {
     setShowDeleteTranscriptionDialog(true)
   }
 
-  // Handle assign speaker to person
-  const handleAssignSpeaker = async (
+  // Handle assign speaker to person - show confirmation dialog
+  const handleAssignSpeaker = (
     speaker: string,
     currentPersonId: string | { _id: string; name: string; company?: string } | undefined,
     newPersonId: string
   ) => {
-    if (!meetingId) return
+    setPendingAssignment({ speaker, currentPersonId, newPersonId })
+    setShowAssignConfirmDialog(true)
+  }
 
+  // Confirm and execute speaker assignment
+  const confirmAssignment = async () => {
+    if (!meetingId || !pendingAssignment) return
+
+    setShowAssignConfirmDialog(false)
     setIsAssigning(true)
     try {
       let response
 
       // Check if already assigned to a person
-      if (currentPersonId && typeof currentPersonId === 'object') {
+      if (pendingAssignment.currentPersonId && typeof pendingAssignment.currentPersonId === 'object') {
         // Reassign from current person to new person
-        response = await reassignPersonTranscriptions(meetingId, currentPersonId._id, newPersonId)
-        console.log(`Reassigned transcriptions from '${currentPersonId.name}' to new person (${response.data.modifiedCount} transcriptions updated)`)
+        response = await reassignPersonTranscriptions(meetingId, pendingAssignment.currentPersonId._id, pendingAssignment.newPersonId)
+        console.log(`Reassigned transcriptions from '${pendingAssignment.currentPersonId.name}' to new person (${response.data.modifiedCount} transcriptions updated)`)
       } else {
         // Assign speaker to person for the first time
-        response = await assignSpeakerToPerson(meetingId, speaker, newPersonId)
-        console.log(`Assigned '${speaker}' to person (${response.data.modifiedCount} transcriptions updated)`)
+        response = await assignSpeakerToPerson(meetingId, pendingAssignment.speaker, pendingAssignment.newPersonId)
+        console.log(`Assigned '${pendingAssignment.speaker}' to person (${response.data.modifiedCount} transcriptions updated)`)
       }
 
       if (response.success) {
@@ -428,6 +441,7 @@ export function MeetingDetailsPage() {
       }
     } finally {
       setIsAssigning(false)
+      setPendingAssignment(null)
     }
   }
 
@@ -824,28 +838,26 @@ export function MeetingDetailsPage() {
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             {segment.speaker && (
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-foreground">
-                                  {typeof segment.personId === 'object' && segment.personId !== null
-                                    ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
-                                    : segment.speaker}
-                                </span>
-                                <Select
-                                  onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
-                                  disabled={isAssigning}
-                                >
-                                  <SelectTrigger className="h-6 w-[160px] text-xs">
-                                    <SelectValue placeholder="Assign to person..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {people.map((person) => (
-                                      <SelectItem key={person._id} value={person._id} className="pl-6">
-                                        {person.name}{person.company && ` - ${person.company}`}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <Select
+                                value={typeof segment.personId === 'object' && segment.personId !== null ? segment.personId._id : ''}
+                                onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
+                                disabled={isAssigning}
+                              >
+                                <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs font-medium border-dashed gap-3">
+                                  <SelectValue placeholder={segment.speaker}>
+                                    {typeof segment.personId === 'object' && segment.personId !== null
+                                      ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
+                                      : segment.speaker}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {people.map((person) => (
+                                    <SelectItem key={person._id} value={person._id} className="pl-6">
+                                      {person.name}{person.company && ` - ${person.company}`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             )}
                             {segment.startTime !== undefined && segment.endTime !== undefined && (
                               <span className="text-muted-foreground">
@@ -1210,6 +1222,40 @@ export function MeetingDetailsPage() {
               onClick={handleDeleteTranscription}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Speaker Confirmation Dialog */}
+      <Dialog open={showAssignConfirmDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowAssignConfirmDialog(false)
+          setPendingAssignment(null)
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Speaker to Person</DialogTitle>
+            <DialogDescription>
+              All transcriptions with this speaker will be updated. This will affect multiple segments in this meeting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAssignConfirmDialog(false)
+                setPendingAssignment(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmAssignment}
+              disabled={isAssigning}
+            >
+              {isAssigning ? 'Assigning...' : 'Confirm'}
             </Button>
           </DialogFooter>
         </DialogContent>
