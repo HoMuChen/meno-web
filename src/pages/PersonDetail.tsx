@@ -17,6 +17,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import api, { ApiException } from '@/lib/api'
 import { formatTimeFromMs, formatDate } from '@/lib/formatters'
 import type { Person, PersonTranscription, PersonTranscriptionsResponse } from '@/types/person'
@@ -35,6 +36,11 @@ export function PersonDetailPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const limit = 20
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   // Fetch person details
   const fetchPerson = useCallback(async () => {
@@ -62,14 +68,17 @@ export function PersonDetailPage() {
   }, [personId])
 
   // Fetch person transcriptions
-  const fetchTranscriptions = useCallback(async (page: number = 1) => {
+  const fetchTranscriptions = useCallback(async (page: number = 1, search: string = '') => {
     if (!personId) return
 
     try {
       setIsLoadingTranscriptions(true)
       setTranscriptionError(null)
+      setSearchError(null)
+
+      const searchParam = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''
       const response = await api.get<PersonTranscriptionsResponse>(
-        `/api/people/${personId}/transcriptions?page=${page}&limit=${limit}&sort=createdAt`
+        `/api/people/${personId}/transcriptions?page=${page}&limit=${limit}&sort=createdAt${searchParam}`
       )
 
       if (response.success && response.data) {
@@ -80,12 +89,23 @@ export function PersonDetailPage() {
       }
     } catch (err) {
       if (err instanceof ApiException) {
-        setTranscriptionError(err.message || 'Failed to load transcriptions')
+        const errorMsg = err.message || 'Failed to load transcriptions'
+        if (search.trim()) {
+          setSearchError(errorMsg)
+        } else {
+          setTranscriptionError(errorMsg)
+        }
       } else {
-        setTranscriptionError('Unable to connect to the server')
+        const errorMsg = 'Unable to connect to the server'
+        if (search.trim()) {
+          setSearchError(errorMsg)
+        } else {
+          setTranscriptionError(errorMsg)
+        }
       }
     } finally {
       setIsLoadingTranscriptions(false)
+      setIsSearching(false)
     }
   }, [personId, limit])
 
@@ -96,8 +116,31 @@ export function PersonDetailPage() {
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      fetchTranscriptions(newPage)
+      fetchTranscriptions(newPage, searchQuery)
       window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  // Handle search
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    setCurrentPage(1)
+    fetchTranscriptions(1, searchQuery)
+  }
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchQuery('')
+    setSearchError(null)
+    setCurrentPage(1)
+    fetchTranscriptions(1, '')
+  }
+
+  // Handle search on Enter key
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
     }
   }
 
@@ -231,6 +274,71 @@ export function PersonDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search Bar */}
+          {total > 0 && (
+            <div className="mb-4 pb-4 border-b">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <Input
+                    type="text"
+                    placeholder="Search transcriptions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleSearchKeyPress}
+                    className="pl-10"
+                    disabled={isSearching}
+                  />
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                  size="sm"
+                >
+                  {isSearching ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      Searching...
+                    </>
+                  ) : (
+                    'Search'
+                  )}
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearSearch}
+                    size="sm"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+
+              {/* Search Error */}
+              {searchError && (
+                <div className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  {searchError}
+                </div>
+              )}
+            </div>
+          )}
+
           {transcriptionError && (
             <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
               {transcriptionError}
