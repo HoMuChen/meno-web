@@ -571,7 +571,13 @@ export function PeoplePage() {
                       {person.company || '-'}
                     </TableCell>
                     <TableCell className="hidden xl:table-cell">
-                      <SocialMediaIcons socialMedia={person.socialMedia} />
+                      {person.socialMedia && (
+                        Object.values(person.socialMedia).some(value => value) ? (
+                          <SocialMediaIcons socialMedia={person.socialMedia} />
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )
+                      ) || <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {formatDate(person.createdAt)}

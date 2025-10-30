@@ -12,7 +12,7 @@ export function SocialMediaIcons({ socialMedia, size = 16, className = '' }: Soc
   const hasSocialMedia = socialMedia.linkedin || socialMedia.twitter || socialMedia.facebook ||
                          socialMedia.instagram || socialMedia.github
 
-  if (!hasSocialMedia) return <span className="text-muted-foreground">-</span>
+  if (!hasSocialMedia) return null
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
