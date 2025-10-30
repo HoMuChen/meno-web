@@ -6,6 +6,7 @@ import { HomePage } from '@/pages/Home'
 import { ProjectsPage } from '@/pages/Projects'
 import { ProjectDetailPage } from '@/pages/ProjectDetail'
 import { MeetingDetailsPage } from '@/pages/MeetingDetails'
+import { PeoplePage } from '@/pages/People'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ProjectsProvider } from '@/contexts/ProjectsContext'
 import { setAuthToken } from '@/lib/auth'
@@ -168,6 +169,7 @@ function AppContent() {
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
                     <Route path="/projects/:projectId/meetings/:meetingId" element={<MeetingDetailsPage />} />
+                    <Route path="/people" element={<PeoplePage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>
