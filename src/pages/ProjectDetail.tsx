@@ -443,111 +443,42 @@ export function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Meetings Section */}
-      <div>
-        {/* Header */}
-        <div className="mb-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
-            <Button className="w-full sm:w-auto" onClick={() => setIsNewMeetingDialogOpen(true)}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2"
-              >
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              New Meeting
-            </Button>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative">
-            <div className="relative flex items-center gap-2">
-              <div className="relative flex-1">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-                <Input
-                  type="text"
-                  placeholder="Search transcriptions across all meetings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleSearchKeyPress}
-                  className="pl-10 pr-10"
-                  disabled={isSearching}
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 hover:bg-muted"
-                    onClick={handleClearSearch}
-                    aria-label="Clear search"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M18 6 6 18" />
-                      <path d="m6 6 12 12" />
-                    </svg>
-                  </Button>
-                )}
-              </div>
+      {/* Search Input Section */}
+      <div className="relative mb-6">
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <Input
+              type="text"
+              placeholder="Search transcriptions across all meetings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleSearchKeyPress}
+              className="pl-10 pr-10"
+              disabled={isSearching}
+            />
+            {searchQuery && (
               <Button
-                onClick={handleSearch}
-                disabled={isSearching}
-                className="shrink-0"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 hover:bg-muted"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
               >
-                {isSearching ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                    Searching...
-                  </>
-                ) : (
-                  'Search'
-                )}
-              </Button>
-            </div>
-
-            {/* Search Error */}
-            {searchError && (
-              <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {searchError}
-              </div>
-            )}
-
-            {/* Search Metadata */}
-            {isSearchMode && searchMetadata && !searchError && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -559,17 +490,83 @@ export function ProjectDetailPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
                 </svg>
-                <span>
-                  Found {searchMetadata.total} result{searchMetadata.total !== 1 ? 's' : ''} across {searchMetadata.meetingsSearched} meeting{searchMetadata.meetingsSearched !== 1 ? 's' : ''}
-                  {searchMetadata.strategy && ` using ${searchMetadata.strategy}`}
-                </span>
-              </div>
+              </Button>
             )}
           </div>
+          <Button
+            onClick={handleSearch}
+            disabled={isSearching}
+            className="shrink-0"
+          >
+            {isSearching ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Searching...
+              </>
+            ) : (
+              'Search'
+            )}
+          </Button>
+        </div>
+
+        {/* Search Error */}
+        {searchError && (
+          <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {searchError}
+          </div>
+        )}
+
+        {/* Search Metadata */}
+        {isSearchMode && searchMetadata && !searchError && (
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            <span>
+              Found {searchMetadata.total} result{searchMetadata.total !== 1 ? 's' : ''} across {searchMetadata.meetingsSearched} meeting{searchMetadata.meetingsSearched !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Meetings Section */}
+      <div>
+        {/* Header */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
+          <Button className="w-full sm:w-auto" onClick={() => setIsNewMeetingDialogOpen(true)}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2"
+            >
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            New Meeting
+          </Button>
         </div>
 
         {/* Search Results */}
