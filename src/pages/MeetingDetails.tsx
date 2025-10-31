@@ -588,6 +588,29 @@ export function MeetingDetailsPage() {
     }
   }
 
+  // Generate consistent color for speaker dot
+  const getSpeakerDotColor = (speaker: string) => {
+    // Hash function to generate consistent color from string
+    let hash = 0
+    for (let i = 0; i < speaker.length; i++) {
+      hash = speaker.charCodeAt(i) + ((hash << 5) - hash)
+    }
+
+    // Generate colors for speaker dots
+    const colors = [
+      'bg-blue-500',
+      'bg-green-500',
+      'bg-purple-500',
+      'bg-orange-500',
+      'bg-pink-500',
+      'bg-cyan-500',
+      'bg-amber-500',
+      'bg-indigo-500',
+    ]
+
+    return colors[Math.abs(hash) % colors.length]
+  }
+
   // Handle generate action items
   const handleGenerateActionItems = async () => {
     if (!projectId || !meetingId) return
@@ -1117,6 +1140,10 @@ export function MeetingDetailsPage() {
                   <div className="space-y-3">
                   {(isSearchMode ? searchResults : transcriptions).map((segment) => {
                     const isEditing = editingTranscriptionId === segment._id
+                    const speakerName = typeof segment.personId === 'object' && segment.personId !== null
+                      ? segment.personId.name
+                      : segment.speaker
+                    const speakerDotColor = speakerName ? getSpeakerDotColor(speakerName) : ''
                     return (
                       <div
                         key={segment._id}
@@ -1125,18 +1152,20 @@ export function MeetingDetailsPage() {
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             {segment.speaker && (
-                              <Select
-                                value={typeof segment.personId === 'object' && segment.personId !== null ? segment.personId._id : ''}
-                                onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
-                                disabled={isAssigning}
-                              >
-                                <SelectTrigger className="h-7 w-auto min-w-[120px] text-sm font-medium gap-3 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50">
-                                  <SelectValue placeholder={segment.speaker}>
-                                    {typeof segment.personId === 'object' && segment.personId !== null
-                                      ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
-                                      : segment.speaker}
-                                  </SelectValue>
-                                </SelectTrigger>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${speakerDotColor}`} />
+                                <Select
+                                  value={typeof segment.personId === 'object' && segment.personId !== null ? segment.personId._id : ''}
+                                  onValueChange={(newPersonId) => handleAssignSpeaker(segment.speaker, segment.personId, newPersonId)}
+                                  disabled={isAssigning}
+                                >
+                                  <SelectTrigger className="h-7 w-auto min-w-[120px] text-sm font-medium gap-3 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50">
+                                    <SelectValue placeholder={segment.speaker}>
+                                      {typeof segment.personId === 'object' && segment.personId !== null
+                                        ? `${segment.personId.name}${segment.personId.company ? ` - ${segment.personId.company}` : ''}`
+                                        : segment.speaker}
+                                    </SelectValue>
+                                  </SelectTrigger>
                                 <SelectContent>
                                   {people.map((person) => (
                                     <SelectItem key={person._id} value={person._id} className="pl-6">
@@ -1157,6 +1186,7 @@ export function MeetingDetailsPage() {
                                   </SelectItem>
                                 </SelectContent>
                               </Select>
+                              </div>
                             )}
                             {segment.startTime !== undefined && segment.endTime !== undefined && (
                               <span className="text-muted-foreground">
