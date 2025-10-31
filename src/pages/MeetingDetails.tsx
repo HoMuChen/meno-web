@@ -123,6 +123,7 @@ export function MeetingDetailsPage() {
   const [editingActionItemId, setEditingActionItemId] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState('')
   const [editingContext, setEditingContext] = useState('')
+  const [editingDueDate, setEditingDueDate] = useState('')
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -708,6 +709,8 @@ export function MeetingDetailsPage() {
     setEditingActionItemId(item._id)
     setEditingTask(item.task)
     setEditingContext(item.context)
+    // Convert ISO 8601 datetime to datetime-local format for input field
+    setEditingDueDate(item.dueDate ? item.dueDate.slice(0, 16) : '')
   }
 
   // Handle cancel editing action item
@@ -715,6 +718,7 @@ export function MeetingDetailsPage() {
     setEditingActionItemId(null)
     setEditingTask('')
     setEditingContext('')
+    setEditingDueDate('')
   }
 
   // Handle save action item edits
@@ -722,23 +726,28 @@ export function MeetingDetailsPage() {
     if (!projectId || !meetingId) return
 
     try {
+      // Convert datetime-local format to ISO 8601 if dueDate is provided
+      const dueDateISO = editingDueDate ? new Date(editingDueDate).toISOString() : null
+
       // Optimistic update
       setActionItems(prev =>
         prev.map(item =>
           item._id === actionItemId
-            ? { ...item, task: editingTask, context: editingContext }
+            ? { ...item, task: editingTask, context: editingContext, dueDate: dueDateISO }
             : item
         )
       )
 
       await updateActionItem(projectId, meetingId, actionItemId, {
         task: editingTask,
-        context: editingContext
+        context: editingContext,
+        dueDate: dueDateISO || undefined
       })
 
       setEditingActionItemId(null)
       setEditingTask('')
       setEditingContext('')
+      setEditingDueDate('')
     } catch (err) {
       // Revert optimistic update on error
       const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
@@ -754,6 +763,7 @@ export function MeetingDetailsPage() {
       setEditingActionItemId(null)
       setEditingTask('')
       setEditingContext('')
+      setEditingDueDate('')
     }
   }
 
@@ -1520,6 +1530,18 @@ export function MeetingDetailsPage() {
                                   placeholder="Task title"
                                   className="font-semibold"
                                 />
+                                <div className="space-y-1">
+                                  <label htmlFor="due-date" className="text-xs font-medium text-muted-foreground">
+                                    Due Date
+                                  </label>
+                                  <Input
+                                    id="due-date"
+                                    type="datetime-local"
+                                    value={editingDueDate}
+                                    onChange={(e) => setEditingDueDate(e.target.value)}
+                                    className="text-sm"
+                                  />
+                                </div>
                                 <Textarea
                                   value={editingContext}
                                   onChange={(e) => setEditingContext(e.target.value)}
@@ -1637,7 +1659,7 @@ export function MeetingDetailsPage() {
                                 <line x1="8" x2="8" y1="2" y2="6" />
                                 <line x1="3" x2="21" y1="10" y2="10" />
                               </svg>
-                              <span>{item.dueDate}</span>
+                              <span>{new Date(item.dueDate).toLocaleString()}</span>
                             </div>
                           )}
                           <Select
