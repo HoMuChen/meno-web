@@ -65,13 +65,20 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
-          <CardDescription>
-            Enter your email and password to access your account
-          </CardDescription>
-        </CardHeader>
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold tracking-tight">Welcome to Meno</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your AI-powered meeting transcription assistant
+          </p>
+        </div>
+        <Card className="w-full">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
+            <CardDescription>
+              Enter your email and password to access your account
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -157,6 +164,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

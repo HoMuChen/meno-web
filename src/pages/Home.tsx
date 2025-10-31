@@ -173,8 +173,8 @@ export function HomePage() {
 
       {/* Empty State for Meetings */}
       {!isLoadingMeetings && localMeetings.length === 0 && !meetingsError && (
-        <div className="mb-8">
-          <div className="rounded-lg border border-dashed p-6 text-center">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="rounded-lg border border-dashed p-8 text-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="48"
@@ -190,10 +190,32 @@ export function HomePage() {
             >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            <h3 className="mb-1 text-base font-semibold">No meetings yet</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="mb-2 text-base font-semibold">No meetings yet</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
               Upload your first audio file to get started!
             </p>
+            <Button
+              onClick={handleNewMeetingClick}
+              disabled={isLoadingProjects || projects.length === 0}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              New Meeting
+            </Button>
           </div>
         </div>
       )}
