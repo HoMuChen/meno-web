@@ -41,6 +41,7 @@ export function PersonDetailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [hasSearched, setHasSearched] = useState(false)
 
   // Fetch person details
   const fetchPerson = useCallback(async () => {
@@ -123,8 +124,13 @@ export function PersonDetailPage() {
 
   // Handle search
   const handleSearch = () => {
-    if (!searchQuery.trim()) return
+    // Treat empty search as clear
+    if (!searchQuery.trim()) {
+      handleClearSearch()
+      return
+    }
     setIsSearching(true)
+    setHasSearched(true)
     setCurrentPage(1)
     fetchTranscriptions(1, searchQuery)
   }
@@ -133,6 +139,7 @@ export function PersonDetailPage() {
   const handleClearSearch = () => {
     setSearchQuery('')
     setSearchError(null)
+    setHasSearched(false)
     setCurrentPage(1)
     fetchTranscriptions(1, '')
   }
@@ -275,7 +282,7 @@ export function PersonDetailPage() {
         </CardHeader>
         <CardContent>
           {/* Search Bar */}
-          {total > 0 && (
+          {(total > 0 || hasSearched) && (
             <div className="mb-4 pb-4 border-b">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
