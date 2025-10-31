@@ -2,21 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog'
 import { NewMeetingDialog } from '@/components/NewMeetingDialog'
-import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
+import { MeetingCard } from '@/components/MeetingCard'
 import { useProjectsContext } from '@/contexts/ProjectsContext'
 import { useMeetings } from '@/hooks/useMeetings'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatDuration, formatDateTime } from '@/lib/formatters'
 import { extractProjectId } from '@/lib/meeting-utils'
 import api from '@/lib/api'
 import type { MeetingResponse, Meeting } from '@/types/meeting'
@@ -128,78 +121,11 @@ export function HomePage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {localMeetings.map((meeting) => (
-              <Card
+              <MeetingCard
                 key={meeting._id}
-                className="cursor-pointer transition-all hover:border-primary/50"
+                meeting={meeting}
                 onClick={() => navigate(`/projects/${extractProjectId(meeting.projectId)}/meetings/${meeting._id}`)}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-2 text-sm text-primary">
-                      {meeting.title}
-                    </CardTitle>
-                    <StatusBadge
-                      status={meeting.transcriptionStatus}
-                      progress={meeting.transcriptionProgress}
-                      showSpinner
-                      showProgress
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {/* Description */}
-                  {meeting.description && (
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                      {meeting.description}
-                    </p>
-                  )}
-
-                  {/* Progress Bar for Processing */}
-                  {(meeting.transcriptionStatus === 'pending' || meeting.transcriptionStatus === 'processing') && meeting.transcriptionProgress !== undefined && (
-                    <StatusProgressBar progress={meeting.transcriptionProgress} />
-                  )}
-
-                  {/* Duration */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span>{formatDuration(meeting.duration)}</span>
-                  </div>
-
-                  {/* Created Date */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                      <line x1="16" x2="16" y1="2" y2="6" />
-                      <line x1="8" x2="8" y1="2" y2="6" />
-                      <line x1="3" x2="21" y1="10" y2="10" />
-                    </svg>
-                    <span>{formatDateTime(meeting.createdAt)}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              />
             ))}
           </div>
         </div>
