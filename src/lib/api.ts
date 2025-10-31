@@ -295,6 +295,23 @@ export async function searchProjectTranscriptions(
 }
 
 /**
+ * Update a meeting (title or move to different project)
+ */
+export async function updateMeeting(
+  projectId: string,
+  meetingId: string,
+  data: {
+    title?: string
+    projectId?: string
+  }
+) {
+  return api.put(
+    `/api/projects/${projectId}/meetings/${meetingId}`,
+    data
+  )
+}
+
+/**
  * Generate action items for a meeting
  */
 export async function generateActionItems(projectId: string, meetingId: string) {

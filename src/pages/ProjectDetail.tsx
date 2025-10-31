@@ -24,7 +24,7 @@ import { NewMeetingDialog } from '@/components/NewMeetingDialog'
 import { MeetingCard } from '@/components/MeetingCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProjectsContext } from '@/contexts/ProjectsContext'
-import api, { ApiException, searchProjectTranscriptions } from '@/lib/api'
+import api, { ApiException, searchProjectTranscriptions, updateMeeting } from '@/lib/api'
 import { formatDateTime, formatTimeFromMs } from '@/lib/formatters'
 import type { Project } from '@/types/project'
 import type { Meeting, MeetingResponse, MeetingsResponse, CrossMeetingSearchResult, CrossMeetingSearchResponse } from '@/types/meeting'
@@ -33,7 +33,7 @@ export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
   const { user, refreshUser } = useAuth()
-  const { refreshProjects } = useProjectsContext()
+  const { projects, refreshProjects } = useProjectsContext()
   const [project, setProject] = useState<Project | null>(null)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -46,6 +46,12 @@ export function ProjectDetailPage() {
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
+
+  // Move meeting state
+  const [meetingToMove, setMeetingToMove] = useState<Meeting | null>(null)
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false)
+  const [isMoving, setIsMoving] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -166,6 +172,44 @@ export function ProjectDetailPage() {
       }
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  // Handle move meeting
+  const handleOpenMoveDialog = (meeting: Meeting) => {
+    setMeetingToMove(meeting)
+    setMoveError(null)
+    setIsMoveDialogOpen(true)
+  }
+
+  const handleMoveMeeting = async (targetProjectId: string) => {
+    if (!meetingToMove || !projectId) return
+
+    try {
+      setIsMoving(true)
+      setMoveError(null)
+
+      await updateMeeting(projectId, meetingToMove._id, {
+        projectId: targetProjectId,
+      })
+
+      // Remove the meeting from the current list
+      setMeetings((prev) => prev.filter((m) => m._id !== meetingToMove._id))
+
+      // Close the dialog
+      setIsMoveDialogOpen(false)
+      setMeetingToMove(null)
+
+      // Optionally navigate to the target project
+      // navigate(`/projects/${targetProjectId}`)
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setMoveError(err.message || 'Failed to move meeting')
+      } else {
+        setMoveError('Unable to connect to the server')
+      }
+    } finally {
+      setIsMoving(false)
     }
   }
 
@@ -739,7 +783,9 @@ export function ProjectDetailPage() {
                 meeting={meeting}
                 onClick={() => navigate(`/projects/${projectId}/meetings/${meeting._id}`)}
                 onDelete={() => setMeetingToDelete(meeting)}
+                onMove={() => handleOpenMoveDialog(meeting)}
                 showDeleteButton={true}
+                showMoveButton={true}
               />
             ))}
           </div>
@@ -769,6 +815,61 @@ export function ProjectDetailPage() {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Meeting Dialog */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={(open) => !open && setIsMoveDialogOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move Meeting to Project</DialogTitle>
+            <DialogDescription>
+              Move "{meetingToMove?.title}" to a different project
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {moveError && (
+              <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                {moveError}
+              </div>
+            )}
+            <div className="space-y-2">
+              {projects
+                .filter((p) => p._id !== projectId)
+                .map((targetProject) => (
+                  <Button
+                    key={targetProject._id}
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4"
+                    onClick={() => handleMoveMeeting(targetProject._id)}
+                    disabled={isMoving}
+                  >
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-semibold">{targetProject.name}</span>
+                      {targetProject.description && (
+                        <span className="text-xs text-muted-foreground line-clamp-1">
+                          {targetProject.description}
+                        </span>
+                      )}
+                    </div>
+                  </Button>
+                ))}
+              {projects.filter((p) => p._id !== projectId).length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  No other projects available. Create a new project first.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsMoveDialogOpen(false)}
+              disabled={isMoving}
+            >
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
