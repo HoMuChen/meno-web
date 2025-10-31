@@ -723,7 +723,6 @@ export function MeetingDetailsPage() {
 
     try {
       // Optimistic update
-      const oldItems = [...actionItems]
       setActionItems(prev =>
         prev.map(item =>
           item._id === actionItemId
