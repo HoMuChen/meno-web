@@ -7,12 +7,19 @@ export interface Meeting {
   recordingType: 'upload' | 'direct'
   transcriptionStatus: 'pending' | 'processing' | 'completed' | 'failed'
   transcriptionProgress?: number
+  actionItemsStatus?: 'not_started' | 'processing' | 'completed' | 'failed'
+  actionItemsProgress?: number
   description?: string
   summary?: string
   metadata?: {
     fileSize?: number
     mimeType?: string
     originalName?: string
+    actionItems?: {
+      generatedAt?: string
+      errorMessage?: string | null
+      count?: number
+    }
   }
   createdAt: string
   updatedAt: string
@@ -130,4 +137,44 @@ export interface CrossMeetingSearchResponse {
     strategy?: string
     meetingsSearched: number
   }
+}
+
+// Action Items types
+export interface ActionItem {
+  _id: string
+  meetingId: {
+    _id: string
+    title: string
+    projectId: string
+  }
+  personId?: {
+    _id: string
+    name: string
+    email?: string
+    company?: string | null
+  }
+  task: string
+  assignee: string
+  dueDate: string | null
+  context: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ActionItemsResponse {
+  success?: boolean
+  message?: string
+  actionItems: ActionItem[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+}
+
+export interface GenerateActionItemsResponse {
+  success: boolean
+  message: string
 }

@@ -294,4 +294,62 @@ export async function searchProjectTranscriptions(
   )
 }
 
+/**
+ * Generate action items for a meeting
+ */
+export async function generateActionItems(projectId: string, meetingId: string) {
+  return api.post(
+    `/api/projects/${projectId}/meetings/${meetingId}/action-items/generate`
+  )
+}
+
+/**
+ * Fetch action items for a meeting
+ */
+export async function fetchActionItems(
+  projectId: string,
+  meetingId: string,
+  page = 1,
+  limit = 50
+) {
+  return api.get(
+    `/api/projects/${projectId}/meetings/${meetingId}/action-items?page=${page}&limit=${limit}`
+  )
+}
+
+/**
+ * Update an action item
+ */
+export async function updateActionItem(
+  projectId: string,
+  meetingId: string,
+  actionItemId: string,
+  data: {
+    task?: string
+    assignee?: string
+    personId?: string
+    dueDate?: string
+    context?: string
+    status?: 'pending' | 'in_progress' | 'completed'
+  }
+) {
+  return api.patch(
+    `/api/projects/${projectId}/meetings/${meetingId}/action-items/${actionItemId}`,
+    data
+  )
+}
+
+/**
+ * Delete an action item
+ */
+export async function deleteActionItem(
+  projectId: string,
+  meetingId: string,
+  actionItemId: string
+) {
+  return api.delete(
+    `/api/projects/${projectId}/meetings/${meetingId}/action-items/${actionItemId}`
+  )
+}
+
 export default api

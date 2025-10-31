@@ -26,9 +26,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
-import api, { ApiException, updateTranscription, deleteTranscription, searchTranscriptionsHybrid, assignSpeakerToPerson, reassignPersonTranscriptions } from '@/lib/api'
+import api, { ApiException, updateTranscription, deleteTranscription, searchTranscriptionsHybrid, assignSpeakerToPerson, reassignPersonTranscriptions, generateActionItems, fetchActionItems, updateActionItem, deleteActionItem } from '@/lib/api'
 import { formatDuration, formatTimeFromMs } from '@/lib/formatters'
-import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse, HybridSearchResponse } from '@/types/meeting'
+import type { Meeting, MeetingResponse, Transcription, TranscriptionsResponse, HybridSearchResponse, ActionItem, ActionItemsResponse } from '@/types/meeting'
 import type { Project } from '@/types/project'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -111,6 +111,18 @@ export function MeetingDetailsPage() {
     speaker: string
     currentPersonId: string | { _id: string; name: string; company?: string } | undefined
   } | null>(null)
+
+  // Action items state
+  const [actionItems, setActionItems] = useState<ActionItem[]>([])
+  const [isLoadingActionItems, setIsLoadingActionItems] = useState(false)
+  const [isGeneratingActionItems, setIsGeneratingActionItems] = useState(false)
+  const [actionItemsError, setActionItemsError] = useState<string | null>(null)
+  const actionItemsLoadedRef = useRef(false)
+  const [deletingActionItemId, setDeletingActionItemId] = useState<string | null>(null)
+  const [showDeleteActionItemDialog, setShowDeleteActionItemDialog] = useState(false)
+  const [editingActionItemId, setEditingActionItemId] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState('')
+  const [editingContext, setEditingContext] = useState('')
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -575,6 +587,177 @@ export function MeetingDetailsPage() {
     }
   }
 
+  // Handle generate action items
+  const handleGenerateActionItems = async () => {
+    if (!projectId || !meetingId) return
+
+    try {
+      setIsGeneratingActionItems(true)
+      setActionItemsError(null)
+
+      await generateActionItems(projectId, meetingId)
+
+      // Start polling for updates
+      fetchMeetingData(false)
+    } catch (err) {
+      console.error('Failed to generate action items:', err)
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to generate action items')
+      } else {
+        setActionItemsError('Unable to generate action items')
+      }
+      setIsGeneratingActionItems(false)
+    }
+  }
+
+  // Fetch action items
+  const fetchActionItemsData = useCallback(async () => {
+    if (!projectId || !meetingId || actionItemsLoadedRef.current) return
+
+    try {
+      setIsLoadingActionItems(true)
+      setActionItemsError(null)
+
+      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+
+      if (response.actionItems) {
+        setActionItems(response.actionItems)
+        actionItemsLoadedRef.current = true
+      }
+    } catch (err) {
+      console.error('Failed to fetch action items:', err)
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to load action items')
+      } else {
+        setActionItemsError('Unable to load action items')
+      }
+    } finally {
+      setIsLoadingActionItems(false)
+    }
+  }, [projectId, meetingId])
+
+  // Handle update action item status
+  const handleUpdateActionItemStatus = async (actionItemId: string, newStatus: 'pending' | 'in_progress' | 'completed') => {
+    if (!projectId || !meetingId) return
+
+    try {
+      // Optimistic update
+      setActionItems(prev =>
+        prev.map(item =>
+          item._id === actionItemId
+            ? { ...item, status: newStatus }
+            : item
+        )
+      )
+
+      await updateActionItem(projectId, meetingId, actionItemId, { status: newStatus })
+    } catch (err) {
+      // Revert optimistic update on error
+      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+      if (response.actionItems) {
+        setActionItems(response.actionItems)
+      }
+
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to update action item')
+      } else {
+        setActionItemsError('Unable to update action item')
+      }
+    }
+  }
+
+  // Handle delete action item
+  const handleDeleteActionItem = async () => {
+    if (!projectId || !meetingId || !deletingActionItemId) return
+
+    try {
+      // Optimistic update
+      setActionItems(prev =>
+        prev.filter(item => item._id !== deletingActionItemId)
+      )
+
+      await deleteActionItem(projectId, meetingId, deletingActionItemId)
+
+      setShowDeleteActionItemDialog(false)
+      setDeletingActionItemId(null)
+    } catch (err) {
+      // Revert optimistic update on error
+      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+      if (response.actionItems) {
+        setActionItems(response.actionItems)
+      }
+
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to delete action item')
+      } else {
+        setActionItemsError('Unable to delete action item')
+      }
+      setShowDeleteActionItemDialog(false)
+      setDeletingActionItemId(null)
+    }
+  }
+
+  // Handle show delete action item confirmation
+  const handleShowDeleteActionItem = (actionItemId: string) => {
+    setDeletingActionItemId(actionItemId)
+    setShowDeleteActionItemDialog(true)
+  }
+
+  // Handle start editing action item
+  const handleStartEditActionItem = (item: ActionItem) => {
+    setEditingActionItemId(item._id)
+    setEditingTask(item.task)
+    setEditingContext(item.context)
+  }
+
+  // Handle cancel editing action item
+  const handleCancelEditActionItem = () => {
+    setEditingActionItemId(null)
+    setEditingTask('')
+    setEditingContext('')
+  }
+
+  // Handle save action item edits
+  const handleSaveActionItemEdit = async (actionItemId: string) => {
+    if (!projectId || !meetingId) return
+
+    try {
+      // Optimistic update
+      const oldItems = [...actionItems]
+      setActionItems(prev =>
+        prev.map(item =>
+          item._id === actionItemId
+            ? { ...item, task: editingTask, context: editingContext }
+            : item
+        )
+      )
+
+      await updateActionItem(projectId, meetingId, actionItemId, {
+        task: editingTask,
+        context: editingContext
+      })
+
+      setEditingActionItemId(null)
+      setEditingTask('')
+      setEditingContext('')
+    } catch (err) {
+      // Revert optimistic update on error
+      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+      if (response.actionItems) {
+        setActionItems(response.actionItems)
+      }
+
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to update action item')
+      } else {
+        setActionItemsError('Unable to update action item')
+      }
+      setEditingActionItemId(null)
+      setEditingTask('')
+      setEditingContext('')
+    }
+  }
+
   // Initial data fetch
   useEffect(() => {
     fetchMeetingData(true)
@@ -582,13 +765,28 @@ export function MeetingDetailsPage() {
 
   // Determine if we should poll for meeting updates
   const isProcessing = meeting?.transcriptionStatus === 'pending' ||
-                       meeting?.transcriptionStatus === 'processing'
+                       meeting?.transcriptionStatus === 'processing' ||
+                       meeting?.actionItemsStatus === 'processing'
 
   // Poll for meeting updates when processing
   usePolling({
     enabled: isProcessing,
     onPoll: () => fetchMeetingData(false),
   })
+
+  // Fetch action items when completed - only once
+  useEffect(() => {
+    if (meeting?.actionItemsStatus === 'completed' && !actionItemsLoadedRef.current) {
+      fetchActionItemsData()
+    }
+  }, [meeting?.actionItemsStatus, fetchActionItemsData])
+
+  // Stop generating state when action items status changes
+  useEffect(() => {
+    if (meeting?.actionItemsStatus === 'completed' || meeting?.actionItemsStatus === 'failed') {
+      setIsGeneratingActionItems(false)
+    }
+  }, [meeting?.actionItemsStatus])
 
   // Fetch transcriptions when completed - only once
   useEffect(() => {
@@ -1236,28 +1434,308 @@ export function MeetingDetailsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-12">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mb-4 text-muted-foreground/60"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <h3 className="mb-2 text-lg font-semibold">Coming Soon</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-md">
-                Action items tracking is currently under development. Stay tuned for this feature!
-              </p>
-            </div>
+            {/* Not Started State */}
+            {meeting?.actionItemsStatus === 'not_started' && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="64"
+                  height="64"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mb-4 text-muted-foreground/60"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="9" x2="15" y1="15" y2="15" />
+                </svg>
+                <h3 className="mb-2 text-lg font-semibold">No Action Items Yet</h3>
+                <p className="mb-4 text-sm text-muted-foreground text-center max-w-md">
+                  Generate AI-powered action items from this meeting's transcription.
+                </p>
+                <Button onClick={handleGenerateActionItems} disabled={isGeneratingActionItems}>
+                  {isGeneratingActionItems ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Action Items'
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Processing State */}
+            {meeting?.actionItemsStatus === 'processing' && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <h3 className="mb-2 text-lg font-semibold">Generating Action Items</h3>
+                <p className="mb-4 text-sm text-muted-foreground text-center max-w-md">
+                  Please wait while we analyze the meeting and extract action items...
+                </p>
+                {meeting?.actionItemsProgress !== undefined && (
+                  <div className="w-full max-w-md">
+                    <StatusProgressBar progress={meeting.actionItemsProgress} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Completed State */}
+            {meeting?.actionItemsStatus === 'completed' && (
+              <>
+                {isLoadingActionItems ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <p className="text-sm text-muted-foreground">Loading action items...</p>
+                  </div>
+                ) : actionItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {actionItems.map((item) => {
+                      const isEditing = editingActionItemId === item._id
+                      const displayName = item.personId
+                        ? typeof item.personId === 'object'
+                          ? item.personId.company
+                            ? `${item.personId.name} - ${item.personId.company}`
+                            : item.personId.name
+                          : item.assignee
+                        : item.assignee
+
+                      return (
+                        <div
+                          key={item._id}
+                          className="rounded-lg border bg-muted/30 p-4 space-y-3"
+                        >
+                          {isEditing ? (
+                            <>
+                              <div className="space-y-2">
+                                <Input
+                                  value={editingTask}
+                                  onChange={(e) => setEditingTask(e.target.value)}
+                                  placeholder="Task title"
+                                  className="font-semibold"
+                                />
+                                <Textarea
+                                  value={editingContext}
+                                  onChange={(e) => setEditingContext(e.target.value)}
+                                  placeholder="Context"
+                                  className="text-xs min-h-[60px]"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveActionItemEdit(item._id)}
+                                  disabled={!editingTask.trim()}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelEditActionItem}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-sm mb-1">{item.task}</h4>
+                                  <p className="text-xs text-muted-foreground">{item.context}</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => handleStartEditActionItem(item)}
+                                    aria-label="Edit action item"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                      <path d="m15 5 4 4" />
+                                    </svg>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleShowDeleteActionItem(item._id)}
+                                    aria-label="Delete action item"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M3 6h18" />
+                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                    </svg>
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs">
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                  </svg>
+                                  <span>{displayName}</span>
+                                </div>
+                          {item.dueDate && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                                <line x1="16" x2="16" y1="2" y2="6" />
+                                <line x1="8" x2="8" y1="2" y2="6" />
+                                <line x1="3" x2="21" y1="10" y2="10" />
+                              </svg>
+                              <span>{item.dueDate}</span>
+                            </div>
+                          )}
+                          <Select
+                            value={item.status}
+                            onValueChange={(newStatus) => handleUpdateActionItemStatus(item._id, newStatus as 'pending' | 'in_progress' | 'completed')}
+                          >
+                            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs">
+                              <SelectValue>
+                                <span
+                                  className={`inline-flex items-center ${
+                                    item.status === 'completed'
+                                      ? 'text-green-700 dark:text-green-400'
+                                      : item.status === 'in_progress'
+                                      ? 'text-blue-700 dark:text-blue-400'
+                                      : 'text-gray-700 dark:text-gray-400'
+                                  }`}
+                                >
+                                  {item.status === 'in_progress' ? 'In Progress' : item.status === 'pending' ? 'Pending' : 'Completed'}
+                                </span>
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mb-3 text-muted-foreground"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <h3 className="mb-1 text-base font-semibold">No Action Items Found</h3>
+                    <p className="text-xs text-muted-foreground">
+                      No action items were identified in this meeting.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Failed State */}
+            {meeting?.actionItemsStatus === 'failed' && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mb-3 text-destructive"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" x2="12" y1="8" y2="12" />
+                  <line x1="12" x2="12.01" y1="16" y2="16" />
+                </svg>
+                <h3 className="mb-2 text-base font-semibold text-destructive">Failed to Generate Action Items</h3>
+                <p className="mb-4 text-xs text-muted-foreground text-center max-w-md">
+                  {actionItemsError || meeting?.metadata?.actionItems?.errorMessage || 'An error occurred while generating action items'}
+                </p>
+                <Button onClick={handleGenerateActionItems} disabled={isGeneratingActionItems}>
+                  Try Again
+                </Button>
+              </div>
+            )}
+
+            {/* Error State */}
+            {actionItemsError && meeting?.actionItemsStatus !== 'failed' && (
+              <div className="mt-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {actionItemsError}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1413,6 +1891,40 @@ export function MeetingDetailsPage() {
               disabled={isCreatingPerson || !newPersonName.trim()}
             >
               {isCreatingPerson ? 'Creating...' : 'Create & Assign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Action Item Confirmation Dialog */}
+      <Dialog open={showDeleteActionItemDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowDeleteActionItemDialog(false)
+          setDeletingActionItemId(null)
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Action Item</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this action item? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteActionItemDialog(false)
+                setDeletingActionItemId(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteActionItem}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
