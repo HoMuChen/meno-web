@@ -40,6 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { usePeopleContext } from '@/contexts/PeopleContext'
 import { usePolling } from '@/hooks/usePolling'
 import {
@@ -790,6 +796,118 @@ export function MeetingDetailsPage() {
     }
   }
 
+  // Download summary as text
+  const downloadSummaryAsTxt = () => {
+    if (!meeting?.summary && !streamingSummary) return
+
+    const content = meeting?.summary || streamingSummary
+    const fileName = `${meeting?.title || 'meeting'}-summary.txt`
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Download summary as markdown
+  const downloadSummaryAsMarkdown = () => {
+    if (!meeting?.summary && !streamingSummary) return
+
+    const content = meeting?.summary || streamingSummary
+    const fileName = `${meeting?.title || 'meeting'}-summary.md`
+    const markdownContent = `# ${meeting?.title || 'Meeting'} - Summary\n\n${content}`
+    const blob = new Blob([markdownContent], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Download action items as text
+  const downloadActionItemsAsTxt = () => {
+    if (actionItems.length === 0) return
+
+    let content = `${meeting?.title || 'Meeting'} - Action Items\n\n`
+    actionItems.forEach((item, index) => {
+      const displayName = item.personId
+        ? typeof item.personId === 'object'
+          ? item.personId.company
+            ? `${item.personId.name} - ${item.personId.company}`
+            : item.personId.name
+          : item.assignee
+        : item.assignee
+
+      content += `${index + 1}. ${item.task}\n`
+      content += `   Assignee: ${displayName}\n`
+      content += `   Status: ${item.status === 'in_progress' ? 'In Progress' : item.status === 'pending' ? 'Pending' : 'Completed'}\n`
+      if (item.context) {
+        content += `   Context: ${item.context}\n`
+      }
+      if (item.dueDate) {
+        content += `   Due Date: ${new Date(item.dueDate).toLocaleString()}\n`
+      }
+      content += '\n'
+    })
+
+    const fileName = `${meeting?.title || 'meeting'}-action-items.txt`
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Download action items as markdown
+  const downloadActionItemsAsMarkdown = () => {
+    if (actionItems.length === 0) return
+
+    let content = `# ${meeting?.title || 'Meeting'} - Action Items\n\n`
+    actionItems.forEach((item, index) => {
+      const displayName = item.personId
+        ? typeof item.personId === 'object'
+          ? item.personId.company
+            ? `${item.personId.name} - ${item.personId.company}`
+            : item.personId.name
+          : item.assignee
+        : item.assignee
+
+      const statusIcon = item.status === 'completed' ? '✅' : item.status === 'in_progress' ? '🔄' : '⏳'
+      content += `${index + 1}. **${item.task}** ${statusIcon}\n`
+      content += `   - **Assignee:** ${displayName}\n`
+      content += `   - **Status:** ${item.status === 'in_progress' ? 'In Progress' : item.status === 'pending' ? 'Pending' : 'Completed'}\n`
+      if (item.context) {
+        content += `   - **Context:** ${item.context}\n`
+      }
+      if (item.dueDate) {
+        content += `   - **Due Date:** ${new Date(item.dueDate).toLocaleString()}\n`
+      }
+      content += '\n'
+    })
+
+    const fileName = `${meeting?.title || 'meeting'}-action-items.md`
+    const blob = new Blob([content], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   // Initial data fetch
   useEffect(() => {
     fetchMeetingData(true)
@@ -1355,10 +1473,82 @@ export function MeetingDetailsPage() {
       {activeContentTab === 'summary' && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-primary">Summary</CardTitle>
-            <CardDescription className="text-xs">
-              AI-generated meeting summary
-            </CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg text-primary">Summary</CardTitle>
+                <CardDescription className="text-xs">
+                  AI-generated meeting summary
+                </CardDescription>
+              </div>
+              {(meeting?.summary || streamingSummary) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 h-9 w-9 p-0"
+                      aria-label="Download options"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="12" cy="5" r="1" />
+                        <circle cx="12" cy="19" r="1" />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={downloadSummaryAsTxt}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" x2="12" y1="15" y2="3" />
+                      </svg>
+                      Download as TXT
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadSummaryAsMarkdown}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" x2="12" y1="15" y2="3" />
+                      </svg>
+                      Download as Markdown
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {meeting?.summary || streamingSummary ? (
@@ -1467,10 +1657,82 @@ export function MeetingDetailsPage() {
       {activeContentTab === 'events' && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg text-primary">Action Items</CardTitle>
-            <CardDescription className="text-xs">
-              Tasks and follow-ups from this meeting
-            </CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-lg text-primary">Action Items</CardTitle>
+                <CardDescription className="text-xs">
+                  Tasks and follow-ups from this meeting
+                </CardDescription>
+              </div>
+              {meeting?.actionItemsStatus === 'completed' && actionItems.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 h-9 w-9 p-0"
+                      aria-label="Download options"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="12" cy="5" r="1" />
+                        <circle cx="12" cy="19" r="1" />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={downloadActionItemsAsTxt}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" x2="12" y1="15" y2="3" />
+                      </svg>
+                      Download as TXT
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadActionItemsAsMarkdown}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" x2="12" y1="15" y2="3" />
+                      </svg>
+                      Download as Markdown
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {/* Not Started State */}
