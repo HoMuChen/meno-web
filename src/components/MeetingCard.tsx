@@ -1,17 +1,10 @@
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ActionsDropdown, type ActionMenuItem } from '@/components/ActionsDropdown'
 import { StatusBadge, StatusProgressBar } from '@/components/StatusBadge'
 import { formatDuration, formatDateTime } from '@/lib/formatters'
 import type { Meeting } from '@/types/meeting'
@@ -33,6 +26,58 @@ export function MeetingCard({
   showDeleteButton = false,
   showMoveButton = false,
 }: MeetingCardProps) {
+  // Build actions array based on props
+  const actions: ActionMenuItem[] = []
+
+  if (showMoveButton && onMove) {
+    actions.push({
+      label: 'Move to Project',
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+        </svg>
+      ),
+      onClick: onMove,
+      className: 'cursor-pointer',
+    })
+  }
+
+  if (showDeleteButton && onDelete) {
+    actions.push({
+      label: 'Delete',
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+      ),
+      onClick: onDelete,
+      className: 'text-destructive focus:text-destructive cursor-pointer',
+      separator: showMoveButton && !!onMove, // Show separator if move button was added
+    })
+  }
+
   return (
     <Card
       className="cursor-pointer transition-all hover:border-primary/50"
@@ -50,91 +95,13 @@ export function MeetingCard({
               showSpinner
               showProgress
             />
-            {(showDeleteButton || showMoveButton) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 hover:bg-muted"
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label="Meeting actions"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="1" />
-                      <circle cx="12" cy="5" r="1" />
-                      <circle cx="12" cy="19" r="1" />
-                    </svg>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                  {showMoveButton && onMove && (
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onMove()
-                      }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-                      </svg>
-                      Move to Project
-                    </DropdownMenuItem>
-                  )}
-                  {showMoveButton && showDeleteButton && onMove && onDelete && (
-                    <DropdownMenuSeparator />
-                  )}
-                  {showDeleteButton && onDelete && (
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete()
-                      }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                      </svg>
-                      Delete
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {actions.length > 0 && (
+              <ActionsDropdown
+                actions={actions}
+                triggerClassName="h-6 w-6 p-0 hover:bg-muted"
+                stopPropagation={true}
+                aria-label="Meeting actions"
+              />
             )}
           </div>
         </div>
