@@ -134,7 +134,13 @@ export function PersonDetailPage() {
       const response = await fetchPersonActionItems(personId, page, actionItemsLimit, 'createdAt') as { success: boolean; data?: ActionItemsResponse }
 
       if (response.success && response.data) {
-        setActionItems(response.data.actionItems)
+        // Sort action items: pending first, completed last
+        const sortedItems = response.data.actionItems.sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return 0
+        })
+        setActionItems(sortedItems)
         setActionItemsPage(response.data.pagination.page)
         setTotalActionItemsPages(response.data.pagination.pages)
         setTotalActionItems(response.data.pagination.total)
@@ -155,14 +161,20 @@ export function PersonDetailPage() {
     actionItemId: string,
     projectId: string,
     meetingId: string,
-    newStatus: 'pending' | 'in_progress' | 'completed'
+    newStatus: 'pending' | 'completed'
   ) => {
-    // Optimistic update
-    setActionItems((prev) =>
-      prev.map((item) =>
+    // Optimistic update - move to bottom if completed, to top if pending
+    setActionItems((prev) => {
+      const updated = prev.map((item) =>
         item._id === actionItemId ? { ...item, status: newStatus } : item
       )
-    )
+      // Sort: pending items first, completed items last
+      return updated.sort((a, b) => {
+        if (a.status === 'completed' && b.status !== 'completed') return 1
+        if (a.status !== 'completed' && b.status === 'completed') return -1
+        return 0
+      })
+    })
 
     try {
       await updateActionItem(projectId, meetingId, actionItemId, {

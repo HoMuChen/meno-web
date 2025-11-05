@@ -643,7 +643,13 @@ export function MeetingDetailsPage() {
       const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
 
       if (response.actionItems) {
-        setActionItems(response.actionItems)
+        // Sort action items: pending first, completed last
+        const sortedItems = response.actionItems.sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return 0
+        })
+        setActionItems(sortedItems)
         actionItemsLoadedRef.current = true
       }
     } catch (err) {
@@ -663,17 +669,23 @@ export function MeetingDetailsPage() {
     actionItemId: string,
     statusProjectId: string,
     statusMeetingId: string,
-    newStatus: 'pending' | 'in_progress' | 'completed'
+    newStatus: 'pending' | 'completed'
   ) => {
     try {
-      // Optimistic update
-      setActionItems(prev =>
-        prev.map(item =>
+      // Optimistic update - move to bottom if completed, to top if pending
+      setActionItems(prev => {
+        const updated = prev.map(item =>
           item._id === actionItemId
             ? { ...item, status: newStatus }
             : item
         )
-      )
+        // Sort: pending items first, completed items last
+        return updated.sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return 0
+        })
+      })
 
       await updateActionItem(statusProjectId, statusMeetingId, actionItemId, { status: newStatus })
     } catch (err) {
@@ -681,7 +693,12 @@ export function MeetingDetailsPage() {
       if (projectId && meetingId) {
         const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
         if (response.actionItems) {
-          setActionItems(response.actionItems)
+          const sortedItems = response.actionItems.sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1
+            if (a.status !== 'completed' && b.status === 'completed') return -1
+            return 0
+          })
+          setActionItems(sortedItems)
         }
       }
 
@@ -711,7 +728,12 @@ export function MeetingDetailsPage() {
       // Revert optimistic update on error
       const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
       if (response.actionItems) {
-        setActionItems(response.actionItems)
+        const sortedItems = response.actionItems.sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return 0
+        })
+        setActionItems(sortedItems)
       }
 
       if (err instanceof ApiException) {
@@ -753,7 +775,12 @@ export function MeetingDetailsPage() {
       if (projectId && meetingId) {
         const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
         if (response.actionItems) {
-          setActionItems(response.actionItems)
+          const sortedItems = response.actionItems.sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1
+            if (a.status !== 'completed' && b.status === 'completed') return -1
+            return 0
+          })
+          setActionItems(sortedItems)
         }
       }
 
