@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ActionsDropdown } from '@/components/ActionsDropdown'
+import { ActionItemCard } from '@/components/ActionItemCard'
 import { usePeopleContext } from '@/contexts/PeopleContext'
 import { usePolling } from '@/hooks/usePolling'
 import {
@@ -121,10 +122,6 @@ export function MeetingDetailsPage() {
   const actionItemsLoadedRef = useRef(false)
   const [deletingActionItemId, setDeletingActionItemId] = useState<string | null>(null)
   const [showDeleteActionItemDialog, setShowDeleteActionItemDialog] = useState(false)
-  const [editingActionItemId, setEditingActionItemId] = useState<string | null>(null)
-  const [editingTask, setEditingTask] = useState('')
-  const [editingContext, setEditingContext] = useState('')
-  const [editingDueDate, setEditingDueDate] = useState('')
 
   // Fetch meeting data
   const fetchMeetingData = async (showLoading = true) => {
@@ -662,9 +659,12 @@ export function MeetingDetailsPage() {
   }, [projectId, meetingId])
 
   // Handle update action item status
-  const handleUpdateActionItemStatus = async (actionItemId: string, newStatus: 'pending' | 'in_progress' | 'completed') => {
-    if (!projectId || !meetingId) return
-
+  const handleUpdateActionItemStatus = async (
+    actionItemId: string,
+    statusProjectId: string,
+    statusMeetingId: string,
+    newStatus: 'pending' | 'in_progress' | 'completed'
+  ) => {
     try {
       // Optimistic update
       setActionItems(prev =>
@@ -675,12 +675,14 @@ export function MeetingDetailsPage() {
         )
       )
 
-      await updateActionItem(projectId, meetingId, actionItemId, { status: newStatus })
+      await updateActionItem(statusProjectId, statusMeetingId, actionItemId, { status: newStatus })
     } catch (err) {
       // Revert optimistic update on error
-      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
-      if (response.actionItems) {
-        setActionItems(response.actionItems)
+      if (projectId && meetingId) {
+        const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+        if (response.actionItems) {
+          setActionItems(response.actionItems)
+        }
       }
 
       if (err instanceof ApiException) {
@@ -728,55 +730,31 @@ export function MeetingDetailsPage() {
     setShowDeleteActionItemDialog(true)
   }
 
-  // Handle start editing action item
-  const handleStartEditActionItem = (item: ActionItem) => {
-    setEditingActionItemId(item._id)
-    setEditingTask(item.task)
-    setEditingContext(item.context)
-    // Convert ISO 8601 datetime to datetime-local format for input field
-    setEditingDueDate(item.dueDate ? item.dueDate.slice(0, 16) : '')
-  }
-
-  // Handle cancel editing action item
-  const handleCancelEditActionItem = () => {
-    setEditingActionItemId(null)
-    setEditingTask('')
-    setEditingContext('')
-    setEditingDueDate('')
-  }
-
   // Handle save action item edits
-  const handleSaveActionItemEdit = async (actionItemId: string) => {
-    if (!projectId || !meetingId) return
-
+  const handleSaveActionItemEdit = async (
+    actionItemId: string,
+    editProjectId: string,
+    editMeetingId: string,
+    updates: { task: string; context: string; dueDate?: string }
+  ) => {
     try {
-      // Convert datetime-local format to ISO 8601 if dueDate is provided
-      const dueDateISO = editingDueDate ? new Date(editingDueDate).toISOString() : null
-
       // Optimistic update
       setActionItems(prev =>
         prev.map(item =>
           item._id === actionItemId
-            ? { ...item, task: editingTask, context: editingContext, dueDate: dueDateISO }
+            ? { ...item, ...updates }
             : item
         )
       )
 
-      await updateActionItem(projectId, meetingId, actionItemId, {
-        task: editingTask,
-        context: editingContext,
-        dueDate: dueDateISO || undefined
-      })
-
-      setEditingActionItemId(null)
-      setEditingTask('')
-      setEditingContext('')
-      setEditingDueDate('')
+      await updateActionItem(editProjectId, editMeetingId, actionItemId, updates)
     } catch (err) {
       // Revert optimistic update on error
-      const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
-      if (response.actionItems) {
-        setActionItems(response.actionItems)
+      if (projectId && meetingId) {
+        const response = await fetchActionItems(projectId, meetingId) as ActionItemsResponse
+        if (response.actionItems) {
+          setActionItems(response.actionItems)
+        }
       }
 
       if (err instanceof ApiException) {
@@ -784,10 +762,6 @@ export function MeetingDetailsPage() {
       } else {
         setActionItemsError('Unable to update action item')
       }
-      setEditingActionItemId(null)
-      setEditingTask('')
-      setEditingContext('')
-      setEditingDueDate('')
     }
   }
 
@@ -1755,193 +1729,16 @@ export function MeetingDetailsPage() {
                   </div>
                 ) : actionItems.length > 0 ? (
                   <div className="space-y-3">
-                    {actionItems.map((item) => {
-                      const isEditing = editingActionItemId === item._id
-                      const displayName = item.personId
-                        ? typeof item.personId === 'object'
-                          ? item.personId.company
-                            ? `${item.personId.name} - ${item.personId.company}`
-                            : item.personId.name
-                          : item.assignee
-                        : item.assignee
-
-                      return (
-                        <div
-                          key={item._id}
-                          className="rounded-lg border bg-muted/30 p-4 space-y-3"
-                        >
-                          {isEditing ? (
-                            <>
-                              <div className="space-y-2">
-                                <Input
-                                  value={editingTask}
-                                  onChange={(e) => setEditingTask(e.target.value)}
-                                  placeholder="Task title"
-                                  className="font-semibold"
-                                />
-                                <div className="space-y-1">
-                                  <label htmlFor="due-date" className="text-xs font-medium text-muted-foreground">
-                                    Due Date
-                                  </label>
-                                  <Input
-                                    id="due-date"
-                                    type="datetime-local"
-                                    value={editingDueDate}
-                                    onChange={(e) => setEditingDueDate(e.target.value)}
-                                    className="text-sm"
-                                  />
-                                </div>
-                                <Textarea
-                                  value={editingContext}
-                                  onChange={(e) => setEditingContext(e.target.value)}
-                                  placeholder="Context"
-                                  className="text-xs min-h-[60px]"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSaveActionItemEdit(item._id)}
-                                  disabled={!editingTask.trim()}
-                                >
-                                  Save
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={handleCancelEditActionItem}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-sm mb-1">{item.task}</h4>
-                                  <p className="text-xs text-muted-foreground">{item.context}</p>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={() => handleStartEditActionItem(item)}
-                                    aria-label="Edit action item"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                                      <path d="m15 5 4 4" />
-                                    </svg>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleShowDeleteActionItem(item._id)}
-                                    aria-label="Delete action item"
-                                  >
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <path d="M3 6h18" />
-                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                    </svg>
-                                  </Button>
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs">
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                  </svg>
-                                  <span>{displayName}</span>
-                                </div>
-                          {item.dueDate && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                                <line x1="16" x2="16" y1="2" y2="6" />
-                                <line x1="8" x2="8" y1="2" y2="6" />
-                                <line x1="3" x2="21" y1="10" y2="10" />
-                              </svg>
-                              <span>{new Date(item.dueDate).toLocaleString()}</span>
-                            </div>
-                          )}
-                          <Select
-                            value={item.status}
-                            onValueChange={(newStatus) => handleUpdateActionItemStatus(item._id, newStatus as 'pending' | 'in_progress' | 'completed')}
-                          >
-                            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs">
-                              <SelectValue>
-                                <span
-                                  className={`inline-flex items-center ${
-                                    item.status === 'completed'
-                                      ? 'text-green-700 dark:text-green-400'
-                                      : item.status === 'in_progress'
-                                      ? 'text-blue-700 dark:text-blue-400'
-                                      : 'text-gray-700 dark:text-gray-400'
-                                  }`}
-                                >
-                                  {item.status === 'in_progress' ? 'In Progress' : item.status === 'pending' ? 'Pending' : 'Completed'}
-                                </span>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
+                    {actionItems.map((item) => (
+                      <ActionItemCard
+                        key={item._id}
+                        item={item}
+                        onStatusChange={handleUpdateActionItemStatus}
+                        onEdit={handleSaveActionItemEdit}
+                        onDelete={handleShowDeleteActionItem}
+                        showDelete={true}
+                      />
+                    ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12">

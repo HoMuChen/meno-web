@@ -18,10 +18,13 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import api, { ApiException } from '@/lib/api'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import api, { ApiException, fetchPersonActionItems, updateActionItem } from '@/lib/api'
 import { formatTimeFromMs, formatDate } from '@/lib/formatters'
 import type { Person, PersonTranscription, PersonTranscriptionsResponse } from '@/types/person'
+import type { ActionItem, ActionItemsResponse } from '@/types/meeting'
 import { SocialMediaIcons } from '@/components/SocialMediaIcons'
+import { ActionItemCard } from '@/components/ActionItemCard'
 
 export function PersonDetailPage() {
   const { personId } = useParams<{ personId: string }>()
@@ -42,6 +45,16 @@ export function PersonDetailPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
+
+  // Action items state
+  const [activeTab, setActiveTab] = useState('transcriptions')
+  const [actionItems, setActionItems] = useState<ActionItem[]>([])
+  const [isLoadingActionItems, setIsLoadingActionItems] = useState(false)
+  const [actionItemsError, setActionItemsError] = useState<string | null>(null)
+  const [actionItemsPage, setActionItemsPage] = useState(1)
+  const [totalActionItemsPages, setTotalActionItemsPages] = useState(1)
+  const [totalActionItems, setTotalActionItems] = useState(0)
+  const actionItemsLimit = 50
 
   // Fetch person details
   const fetchPerson = useCallback(async () => {
@@ -110,10 +123,111 @@ export function PersonDetailPage() {
     }
   }, [personId, limit])
 
+  // Fetch action items for the person
+  const fetchActionItems = useCallback(async (page: number = 1) => {
+    if (!personId) return
+
+    try {
+      setIsLoadingActionItems(true)
+      setActionItemsError(null)
+
+      const response = await fetchPersonActionItems(personId, page, actionItemsLimit, 'createdAt') as { success: boolean; data?: ActionItemsResponse }
+
+      if (response.success && response.data) {
+        setActionItems(response.data.actionItems)
+        setActionItemsPage(response.data.pagination.page)
+        setTotalActionItemsPages(response.data.pagination.pages)
+        setTotalActionItems(response.data.pagination.total)
+      }
+    } catch (err) {
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to load action items')
+      } else {
+        setActionItemsError('Unable to connect to the server')
+      }
+    } finally {
+      setIsLoadingActionItems(false)
+    }
+  }, [personId, actionItemsLimit])
+
+  // Handle action item status update
+  const handleUpdateActionItemStatus = async (
+    actionItemId: string,
+    projectId: string,
+    meetingId: string,
+    newStatus: 'pending' | 'in_progress' | 'completed'
+  ) => {
+    // Optimistic update
+    setActionItems((prev) =>
+      prev.map((item) =>
+        item._id === actionItemId ? { ...item, status: newStatus } : item
+      )
+    )
+
+    try {
+      await updateActionItem(projectId, meetingId, actionItemId, {
+        status: newStatus,
+      })
+    } catch (err) {
+      // Revert on error
+      setActionItems((prev) =>
+        prev.map((item) => {
+          if (item._id === actionItemId) {
+            // Find original status by refetching or storing original
+            const originalItem = actionItems.find((ai) => ai._id === actionItemId)
+            return originalItem || item
+          }
+          return item
+        })
+      )
+
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to update action item')
+      } else {
+        setActionItemsError('Unable to connect to the server')
+      }
+    }
+  }
+
+  // Handle action item edit
+  const handleEditActionItem = async (
+    actionItemId: string,
+    projectId: string,
+    meetingId: string,
+    updates: { task: string; context: string; dueDate?: string }
+  ) => {
+    // Optimistic update
+    setActionItems((prev) =>
+      prev.map((item) =>
+        item._id === actionItemId ? { ...item, ...updates } : item
+      )
+    )
+
+    try {
+      await updateActionItem(projectId, meetingId, actionItemId, updates)
+    } catch (err) {
+      // Revert on error by refetching
+      fetchActionItems(actionItemsPage)
+
+      if (err instanceof ApiException) {
+        setActionItemsError(err.message || 'Failed to update action item')
+      } else {
+        setActionItemsError('Unable to connect to the server')
+      }
+    }
+  }
+
   useEffect(() => {
     fetchPerson()
     fetchTranscriptions(1)
   }, [fetchPerson, fetchTranscriptions])
+
+  // Fetch action items when tab changes
+  useEffect(() => {
+    if (activeTab === 'action-items' && actionItems.length === 0) {
+      fetchActionItems(1)
+    }
+  }, [activeTab, fetchActionItems, actionItems.length])
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -148,6 +262,14 @@ export function PersonDetailPage() {
   const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearch()
+    }
+  }
+
+  // Handle action items pagination
+  const handleActionItemsPageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalActionItemsPages) {
+      fetchActionItems(newPage)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -261,26 +383,21 @@ export function PersonDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Transcriptions Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Transcriptions</CardTitle>
-              <CardDescription>
-                {total > 0
-                  ? `${total} transcription${total !== 1 ? 's' : ''} from meetings`
-                  : 'No transcriptions yet'}
-              </CardDescription>
-            </div>
-            {total > 0 && (
-              <Badge variant="secondary" className="text-sm">
-                {total}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+      {/* Transcriptions and Action Items Section */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="transcriptions">
+            Transcriptions {total > 0 && <Badge variant="secondary" className="ml-2">{total}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="action-items">
+            Action Items {totalActionItems > 0 && <Badge variant="secondary" className="ml-2">{totalActionItems}</Badge>}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Transcriptions Tab Content */}
+        <TabsContent value="transcriptions">
+          <Card>
+            <CardContent className="pt-6">
           {/* Search Bar */}
           {(total > 0 || hasSearched) && (
             <div className="mb-4 pb-4 border-b">
@@ -470,8 +587,91 @@ export function PersonDetailPage() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Action Items Tab Content */}
+        <TabsContent value="action-items">
+          <Card>
+            <CardContent className="pt-6">
+              {actionItemsError && (
+                <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                  {actionItemsError}
+                </div>
+              )}
+
+              {isLoadingActionItems && actionItems.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : actionItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-3 rounded-full bg-muted p-4">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-muted-foreground"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    No action items assigned to this person
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Action Items List */}
+                  {actionItems.map((item) => (
+                    <ActionItemCard
+                      key={item._id}
+                      item={item}
+                      onStatusChange={handleUpdateActionItemStatus}
+                      onEdit={handleEditActionItem}
+                    />
+                  ))}
+
+                  {/* Pagination */}
+                  {totalActionItemsPages > 1 && (
+                    <div className="flex items-center justify-between border-t pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Page {actionItemsPage} of {totalActionItemsPages}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleActionItemsPageChange(actionItemsPage - 1)}
+                          disabled={actionItemsPage === 1 || isLoadingActionItems}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleActionItemsPageChange(actionItemsPage + 1)}
+                          disabled={actionItemsPage === totalActionItemsPages || isLoadingActionItems}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

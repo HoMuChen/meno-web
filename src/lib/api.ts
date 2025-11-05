@@ -369,4 +369,18 @@ export async function deleteActionItem(
   )
 }
 
+/**
+ * Fetch action items for a person across all meetings
+ */
+export async function fetchPersonActionItems(
+  personId: string,
+  page = 1,
+  limit = 50,
+  sort = 'createdAt'
+) {
+  return api.get(
+    `/api/people/${personId}/action-items?page=${page}&limit=${limit}&sort=${sort}`
+  )
+}
+
 export default api
