@@ -318,13 +318,6 @@ export function ProjectDetailPage() {
     setSearchMetadata(null)
   }
 
-  // Handle search on Enter key
-  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch()
-    }
-  }
-
   // Initial data fetch
   useEffect(() => {
     fetchData(true)
@@ -347,6 +340,21 @@ export function ProjectDetailPage() {
     }
   }, [meetings])
 
+  // Auto-search with debouncing
+  useEffect(() => {
+    // Don't search if query is empty
+    if (!searchQuery.trim()) {
+      return
+    }
+
+    // Debounce search by 500ms
+    const timeoutId = setTimeout(() => {
+      handleSearch()
+    }, 500)
+
+    // Cleanup timeout on query change
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
 
   if (isLoading) {
     return (
@@ -439,29 +447,53 @@ export function ProjectDetailPage() {
                 <p className="mt-2 text-sm text-muted-foreground">{project.description}</p>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleOpenEditDialog}
-              className="shrink-0"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2"
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenEditDialog}
+                className="shrink-0"
               >
-                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                <path d="m15 5 4 4" />
-              </svg>
-              Edit
-            </Button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="sm:mr-2"
+                >
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+                <span className="hidden sm:inline">Edit</span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsNewMeetingDialogOpen(true)}
+                className="shrink-0"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="sm:mr-2"
+                >
+                  <path d="M5 12h14" />
+                  <path d="M12 5v14" />
+                </svg>
+                <span className="hidden sm:inline">New Meeting</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -487,10 +519,12 @@ export function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Search Input Section */}
-      <div className="relative mb-6">
-        <div className="relative flex items-center gap-2">
-          <div className="relative flex-1">
+      {/* Meetings Section */}
+      <div>
+        {/* Header with Inline Search */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
+          <div className="relative w-full sm:w-64">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -508,10 +542,17 @@ export function ProjectDetailPage() {
             </svg>
             <Input
               type="text"
-              placeholder="Search transcriptions across all meetings..."
+              placeholder="Search meetings..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleSearchKeyPress}
+              onChange={(e) => {
+                const value = e.target.value
+                setSearchQuery(value)
+                // Clear search mode if query is empty
+                if (!value.trim()) {
+                  handleClearSearch()
+                }
+                // Auto-search is handled by useEffect with debouncing
+              }}
               className="pl-10 pr-10"
               disabled={isSearching}
             />
@@ -540,32 +581,18 @@ export function ProjectDetailPage() {
               </Button>
             )}
           </div>
-          <Button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="shrink-0"
-          >
-            {isSearching ? (
-              <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                Searching...
-              </>
-            ) : (
-              'Search'
-            )}
-          </Button>
         </div>
 
         {/* Search Error */}
         {searchError && (
-          <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {searchError}
           </div>
         )}
 
         {/* Search Metadata */}
         {isSearchMode && searchMetadata && !searchError && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="14"
@@ -586,32 +613,6 @@ export function ProjectDetailPage() {
             </span>
           </div>
         )}
-      </div>
-
-      {/* Meetings Section */}
-      <div>
-        {/* Header */}
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-bold tracking-tight text-primary">Meetings</h2>
-          <Button className="w-full sm:w-auto" onClick={() => setIsNewMeetingDialogOpen(true)}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            New Meeting
-          </Button>
-        </div>
 
         {/* Search Results */}
         {isSearchMode && searchResults.length > 0 && (
