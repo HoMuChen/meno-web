@@ -380,6 +380,7 @@ export function MeetingDetailsPage() {
           onGenerate={summaryHook.generateSummary}
           onDownloadTxt={summaryHook.downloadAsTxt}
           onDownloadMarkdown={summaryHook.downloadAsMarkdown}
+          onDownloadDocx={summaryHook.downloadAsDocx}
           meetingTitle={meetingDataHook.meeting?.title}
         />
       )}

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { Document, Paragraph, TextRun, Packer } from 'docx'
 import type { Meeting } from '@/types/meeting'
 
 interface UseMeetingSummaryOptions {
@@ -118,6 +119,86 @@ export function useMeetingSummary({
     URL.revokeObjectURL(url)
   }, [])
 
+  // Download summary as DOCX
+  const downloadAsDocx = useCallback(async (summary: string, meetingTitle?: string) => {
+    if (!summary) return
+
+    try {
+      // Create document title
+      const titleParagraph = new Paragraph({
+        children: [
+          new TextRun({
+            text: `${meetingTitle || 'Meeting'} - Summary`,
+            bold: true,
+            size: 32, // 16pt
+          }),
+        ],
+        spacing: { after: 400 },
+      })
+
+      // Split summary by lines and create paragraphs
+      const lines = summary.split('\n')
+      const contentParagraphs = lines.map((line) => {
+        // Detect headings (lines starting with # or ##)
+        const headingMatch = line.match(/^(#{1,3})\s+(.+)$/)
+        if (headingMatch) {
+          const level = headingMatch[1].length
+          const text = headingMatch[2]
+          return new Paragraph({
+            children: [
+              new TextRun({
+                text,
+                bold: true,
+                size: level === 1 ? 28 : level === 2 ? 24 : 22,
+              }),
+            ],
+            spacing: { before: 200, after: 200 },
+          })
+        }
+
+        // Detect bullet points
+        if (line.match(/^[\s]*[-*]\s+/)) {
+          const text = line.replace(/^[\s]*[-*]\s+/, '')
+          return new Paragraph({
+            children: [new TextRun(text)],
+            bullet: { level: 0 },
+            spacing: { after: 100 },
+          })
+        }
+
+        // Regular paragraph
+        return new Paragraph({
+          children: [new TextRun(line || ' ')], // Empty line for spacing
+          spacing: { after: 120 },
+        })
+      })
+
+      // Create document
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [titleParagraph, ...contentParagraphs],
+          },
+        ],
+      })
+
+      // Generate blob and download
+      const blob = await Packer.toBlob(doc)
+      const fileName = `${meetingTitle || 'meeting'}-summary.docx`
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to generate DOCX:', err)
+    }
+  }, [])
+
   return {
     // State
     streamingSummary,
@@ -128,5 +209,6 @@ export function useMeetingSummary({
     generateSummary,
     downloadAsTxt,
     downloadAsMarkdown,
+    downloadAsDocx,
   }
 }

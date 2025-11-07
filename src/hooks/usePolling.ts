@@ -34,7 +34,7 @@ export function usePolling({
   intervalMs = POLLING_INTERVAL_MS,
   onPoll,
 }: UsePollingOptions) {
-  const intervalRef = useRef<number | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const callbackRef = useRef(onPoll)
 
   // Keep callback ref up to date
