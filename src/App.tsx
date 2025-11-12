@@ -57,9 +57,9 @@ function AppContent() {
   // Handle OAuth token from query parameter
   useEffect(() => {
     const handleOAuthToken = async () => {
-      const token = searchParams.get('token')
+      const accessToken = searchParams.get('token')
 
-      if (!token) {
+      if (!accessToken) {
         return
       }
 
@@ -72,8 +72,8 @@ function AppContent() {
       setIsProcessingToken(true)
 
       try {
-        // Temporarily store token to make authenticated request
-        setAuthToken(token)
+        // Store token to make authenticated request
+        setAuthToken(accessToken)
 
         // Fetch user data using the token
         const response = await api.get<{
@@ -83,7 +83,7 @@ function AppContent() {
 
         if (response.success && response.data) {
           // Call the login success callback
-          await login(token, response.data)
+          await login(accessToken, response.data)
 
           // Clean up URL by removing token parameter
           navigate('/', { replace: true })
@@ -93,12 +93,10 @@ function AppContent() {
       } catch (err) {
         console.error('OAuth token processing error:', err)
 
+        // Note: 401 errors are now handled by global interceptor
+        // Only handle other errors here
         if (err instanceof ApiException) {
-          if (err.status === 401) {
-            setAuthError('Invalid or expired authentication token')
-          } else {
-            setAuthError(err.message || 'Failed to complete authentication')
-          }
+          setAuthError(err.message || 'Failed to complete authentication')
         } else {
           setAuthError('An unexpected error occurred during authentication')
         }

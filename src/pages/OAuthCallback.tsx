@@ -28,7 +28,7 @@ interface User {
 }
 
 interface OAuthCallbackProps {
-  onLoginSuccess: (token: string, user: User) => Promise<void>
+  onLoginSuccess: (accessToken: string, user: User) => Promise<void>
 }
 
 export function OAuthCallback({ onLoginSuccess }: OAuthCallbackProps) {
@@ -41,16 +41,16 @@ export function OAuthCallback({ onLoginSuccess }: OAuthCallbackProps) {
     const handleCallback = async () => {
       try {
         // Extract token from URL query parameter
-        const token = searchParams.get('token')
+        const accessToken = searchParams.get('token')
 
-        if (!token) {
+        if (!accessToken) {
           setError('No authentication token received')
           setIsProcessing(false)
           return
         }
 
-        // Temporarily store token to make authenticated request
-        setAuthToken(token)
+        // Store token to make authenticated request
+        setAuthToken(accessToken)
 
         // Fetch user data using the token
         const response = await api.get<{
@@ -60,7 +60,7 @@ export function OAuthCallback({ onLoginSuccess }: OAuthCallbackProps) {
 
         if (response.success && response.data) {
           // Call the login success callback
-          await onLoginSuccess(token, response.data)
+          await onLoginSuccess(accessToken, response.data)
 
           // Redirect to homepage
           navigate('/', { replace: true })
@@ -70,12 +70,10 @@ export function OAuthCallback({ onLoginSuccess }: OAuthCallbackProps) {
       } catch (err) {
         console.error('OAuth callback error:', err)
 
+        // Note: 401 errors are now handled by global interceptor
+        // Only handle other errors here
         if (err instanceof ApiException) {
-          if (err.status === 401) {
-            setError('Invalid or expired authentication token')
-          } else {
-            setError(err.message || 'Failed to complete authentication')
-          }
+          setError(err.message || 'Failed to complete authentication')
         } else {
           setError('An unexpected error occurred during authentication')
         }

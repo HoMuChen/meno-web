@@ -3,11 +3,21 @@
  *
  * Provides a centralized fetch wrapper for HTTP communication with the backend.
  * Uses environment variables to configure the API base URL.
+ * Includes automatic token refresh on 401 errors using HTTP-only cookies.
  */
 
-import { getAuthToken } from '@/lib/auth'
+import {
+  getAuthToken,
+  setAuthToken,
+  setStoredUser,
+  clearAuthData,
+} from '@/lib/auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/'
+
+// Token refresh state management
+let isRefreshing = false
+let refreshPromise: Promise<string> | null = null
 
 export interface ApiError {
   message: string
@@ -51,9 +61,65 @@ function buildHeaders(customHeaders: HeadersInit = {}, includeContentType = true
 }
 
 /**
- * Handle API response and errors
+ * Refresh access token using HTTP-only refresh token cookie
  */
-async function handleResponse<T>(response: Response): Promise<T> {
+async function refreshAccessToken(): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Send HTTP-only cookie automatically
+  })
+
+  if (!response.ok) {
+    // Refresh failed - clear auth and redirect to login
+    clearAuthData()
+    window.location.href = '/login'
+    throw new Error('Session expired')
+  }
+
+  const data = await response.json()
+
+  // Store new access token
+  setAuthToken(data.data.accessToken)
+  setStoredUser(data.data.user)
+  // Refresh token is automatically updated via Set-Cookie header
+
+  return data.data.accessToken
+}
+
+/**
+ * Handle API response and errors with automatic 401 token refresh
+ */
+async function handleResponse<T>(
+  response: Response,
+  originalRequest?: () => Promise<Response>
+): Promise<T> {
+  // Handle 401 Unauthorized - attempt token refresh
+  if (response.status === 401) {
+    // Prevent concurrent refresh attempts
+    if (!isRefreshing) {
+      isRefreshing = true
+      refreshPromise = refreshAccessToken().finally(() => {
+        isRefreshing = false
+        refreshPromise = null
+      })
+    }
+
+    try {
+      // Wait for refresh to complete
+      await refreshPromise
+
+      // Retry original request with new token
+      if (originalRequest) {
+        const retryResponse = await originalRequest()
+        return await handleResponse<T>(retryResponse, originalRequest)
+      }
+    } catch (error) {
+      // Refresh failed - user will be redirected to login
+      throw new ApiException('Session expired', 401)
+    }
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new ApiException(
@@ -72,7 +138,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Generic fetch wrapper with error handling
+ * Generic fetch wrapper with error handling and automatic retry
  */
 async function apiRequest<T>(
   endpoint: string,
@@ -80,14 +146,18 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
-  const config: RequestInit = {
-    ...options,
-    headers: buildHeaders(options.headers),
+  const makeRequest = async () => {
+    const config: RequestInit = {
+      ...options,
+      headers: buildHeaders(options.headers),
+      credentials: 'include', // Include cookies for all requests
+    }
+    return await fetch(url, config)
   }
 
   try {
-    const response = await fetch(url, config)
-    return await handleResponse<T>(response)
+    const response = await makeRequest()
+    return await handleResponse<T>(response, makeRequest)
   } catch (error) {
     if (error instanceof ApiException) {
       throw error
@@ -143,16 +213,20 @@ export const api = {
   ): Promise<T> => {
     const url = `${API_BASE_URL}${endpoint}`
 
-    const config: RequestInit = {
-      ...options,
-      method: 'POST',
-      headers: buildHeaders(options?.headers, false), // Don't include Content-Type for FormData
-      body: formData,
+    const makeRequest = async () => {
+      const config: RequestInit = {
+        ...options,
+        method: 'POST',
+        headers: buildHeaders(options?.headers, false), // Don't include Content-Type for FormData
+        credentials: 'include', // Include cookies
+        body: formData,
+      }
+      return await fetch(url, config)
     }
 
     try {
-      const response = await fetch(url, config)
-      return await handleResponse<T>(response)
+      const response = await makeRequest()
+      return await handleResponse<T>(response, makeRequest)
     } catch (error) {
       if (error instanceof ApiException) {
         throw error

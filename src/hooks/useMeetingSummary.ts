@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Document, Paragraph, TextRun, Packer } from 'docx'
+import { getAuthToken } from '@/lib/auth'
 import type { Meeting } from '@/types/meeting'
 
 interface UseMeetingSummaryOptions {
@@ -26,11 +27,12 @@ export function useMeetingSummary({
     setStreamingSummary('')
 
     try {
-      const token = localStorage.getItem('auth_token')
+      const token = getAuthToken()
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || '/api'}/api/projects/${projectId}/meetings/${meetingId}/summary/stream`,
         {
           method: 'POST',
+          credentials: 'include', // Include cookies for refresh token
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },

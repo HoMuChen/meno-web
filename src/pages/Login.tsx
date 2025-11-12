@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import api, { ApiException } from '@/lib/api'
 
 interface LoginPageProps {
-  onLoginSuccess: (token: string, user: any) => Promise<void>
+  onLoginSuccess: (accessToken: string, user: any) => Promise<void>
 }
 
 export function LoginPage({ onLoginSuccess }: LoginPageProps) {
@@ -31,8 +31,9 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       const response = await api.post<{
         success: boolean
         data: {
-          token: string
+          accessToken: string
           user: any
+          // refreshToken is in HTTP-only cookie (not in response body)
         }
       }>('/auth/login', {
         email,
@@ -41,7 +42,10 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
       if (response.success && response.data) {
         // Call async success callback (will handle default project creation)
-        await onLoginSuccess(response.data.token, response.data.user)
+        await onLoginSuccess(
+          response.data.accessToken,
+          response.data.user
+        )
       }
     } catch (err) {
       if (err instanceof ApiException) {

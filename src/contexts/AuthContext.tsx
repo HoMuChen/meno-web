@@ -36,7 +36,7 @@ interface AuthContextType {
   user: User | null
   token: string | null
   isLoading: boolean
-  login: (token: string, user: User) => Promise<void>
+  login: (accessToken: string, user: User) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
   updateUsageOptimistically: (durationInSeconds: number) => void
@@ -115,18 +115,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     validateToken()
   }, []) // Empty dependency array - only runs once on mount
 
-  const login = useCallback(async (token: string, user: User) => {
-    setAuthToken(token)
+  const login = useCallback(async (accessToken: string, user: User) => {
+    setAuthToken(accessToken)
     setStoredUser(user)
+    // Refresh token is already set in HTTP-only cookie by backend
     setAuthState({
       isAuthenticated: true,
       user,
-      token,
+      token: accessToken,
       isLoading: false,
     })
   }, [])
 
   const logout = useCallback(() => {
+    // Call backend to clear HTTP-only refresh token cookie
+    api.post('/auth/logout', {}).catch(() => {
+      // Ignore errors - clear local state anyway
+    })
+
     clearAuthData()
     setAuthState({
       isAuthenticated: false,

@@ -86,6 +86,7 @@ export function removeDefaultProjectFlag(): void {
 
 /**
  * Clear all authentication data from localStorage
+ * Note: HTTP-only refresh token cookie is cleared by backend on /auth/logout
  */
 export function clearAuthData(): void {
   removeAuthToken()
