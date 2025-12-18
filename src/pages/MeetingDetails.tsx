@@ -22,12 +22,14 @@ import { MeetingSummary } from '@/components/MeetingSummary'
 import { AssignSpeakerDialog } from '@/components/AssignSpeakerDialog'
 import { AddPersonDialog } from '@/components/AddPersonDialog'
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog'
+import { AudioPlayer } from '@/components/AudioPlayer'
 import { useTranscriptions } from '@/hooks/useTranscriptions'
 import { useMeetingSearch } from '@/hooks/useMeetingSearch'
 import { useMeetingSummary } from '@/hooks/useMeetingSummary'
 import { useMeetingActionItems } from '@/hooks/useMeetingActionItems'
 import { useSpeakerAssignment } from '@/hooks/useSpeakerAssignment'
 import { useMeetingData } from '@/hooks/useMeetingData'
+import { useMeetingAudio } from '@/hooks/useMeetingAudio'
 import { formatDuration } from '@/lib/formatters'
 import { getSpeakerDotColor } from '@/lib/transcription-utils'
 import { ActionsDropdown } from '@/components/ActionsDropdown'
@@ -76,6 +78,13 @@ export function MeetingDetailsPage() {
     meetingId,
     onAssignmentComplete: () => transcriptionsHook.fetchTranscriptions(1, false),
     onError: meetingDataHook.setError,
+  })
+
+  // Use audio playback hook
+  const audioHook = useMeetingAudio({
+    projectId,
+    meetingId,
+    meetingTitle: meetingDataHook.meeting?.title,
   })
 
   const { people, createPerson } = usePeopleContext()
@@ -295,6 +304,27 @@ export function MeetingDetailsPage() {
                 <span className="text-sm text-muted-foreground">
                   {formatDuration(meetingDataHook.meeting.duration)}
                 </span>
+              </div>
+            )}
+
+            {/* Audio Player */}
+            {meetingDataHook.meeting?.audioFile && (
+              <div className="pt-2">
+                <span className="text-sm font-medium block mb-2">Audio:</span>
+                <AudioPlayer
+                  audioUrl={audioHook.audioUrl}
+                  isLoading={audioHook.isLoadingAudio}
+                  error={audioHook.audioError}
+                  isPlaying={audioHook.isPlaying}
+                  currentTime={audioHook.currentTime}
+                  duration={audioHook.duration}
+                  isDownloading={audioHook.isDownloading}
+                  onLoad={audioHook.loadAudio}
+                  onTogglePlayPause={audioHook.togglePlayPause}
+                  onSeek={audioHook.seekTo}
+                  onDownload={audioHook.downloadAudio}
+                  setAudioElement={audioHook.setAudioElement}
+                />
               </div>
             )}
 
